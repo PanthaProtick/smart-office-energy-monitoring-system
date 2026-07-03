@@ -83,3 +83,11 @@ class DeviceLog(Base):
         "Device",
         back_populates="logs"
     )
+
+
+class PowerLog(Base):
+    __tablename__ = "PowerLog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    total_power = Column(Float, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
