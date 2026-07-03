@@ -65,3 +65,21 @@ class Device(Base):
         back_populates="device",
         cascade="all, delete-orphan"
     )
+
+
+class DeviceLog(Base):
+    __tablename__ = "DeviceLog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(
+        Integer,
+        ForeignKey("Device.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    is_active = Column(Boolean, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+
+    device = relationship(
+        "Device",
+        back_populates="logs"
+    )
