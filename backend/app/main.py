@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.apis import devices, power, alert
+from app.apis import devices, power, alert, websocket
 
 
 app = FastAPI(title="Smart Office Energy Monitoring")
@@ -9,6 +9,7 @@ app = FastAPI(title="Smart Office Energy Monitoring")
 app.include_router(devices.router)
 app.include_router(power.router)
 app.include_router(alert.router)
+app.include_router(websocket.router)
 
 
 @app.get("/")
