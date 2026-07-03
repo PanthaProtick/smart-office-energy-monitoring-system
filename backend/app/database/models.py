@@ -91,3 +91,27 @@ class PowerLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     total_power = Column(Float, nullable=False)
     timestamp = Column(DateTime, nullable=False)
+
+
+class AlertStatus(str, enum.Enum):
+    ACTIVE = "active"
+    RESOLVED = "resolved"
+
+
+class AlertRule(str, enum.Enum):
+    POWER_EXCEEDED = "power_exceeded"
+    ROOM_COMPLETELY_ACTIVE = "room_completely_active"
+    DEVICES_AFTER_HOURS = "devices_after_hours"
+    HIGH_POWER_SUSTAINED = "high_power_sustained"
+
+
+class Alert(Base):
+    __tablename__ = "Alert"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rule = Column(Enum(AlertRule), nullable=False)
+    status = Column(Enum(AlertStatus), default=AlertStatus.ACTIVE, nullable=False)
+    message = Column(String, nullable=False)
+    triggered_at = Column(DateTime, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+    context = Column(String, nullable=True)

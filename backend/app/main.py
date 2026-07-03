@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.apis import devices, power, alert, websocket
 from app.services.simulator import simulator
+from app.services.alert_scheduler import scheduler
 
 
 app = FastAPI(title="Smart Office Energy Monitoring")
@@ -16,11 +17,13 @@ app.include_router(websocket.router)
 @app.on_event("startup")
 async def startup_event():
     await simulator.start()
+    await scheduler.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     await simulator.stop()
+    await scheduler.stop()
 
 
 @app.get("/")
