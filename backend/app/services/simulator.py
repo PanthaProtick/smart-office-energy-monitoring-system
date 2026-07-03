@@ -4,7 +4,6 @@ from typing import Optional
 
 from app.database.database import SessionLocal
 from app.services.device_service import DeviceService
-from app.services.websocket_manager import manager
 
 
 class DeviceSimulator:
@@ -13,14 +12,12 @@ class DeviceSimulator:
         self.task: Optional[asyncio.Task] = None
 
     async def start(self):
-        """Start the simulator background loop."""
         if self.running:
             return
         self.running = True
         self.task = asyncio.create_task(self._loop())
 
     async def stop(self):
-        """Stop the simulator background loop."""
         self.running = False
         if self.task:
             self.task.cancel()
@@ -30,12 +27,10 @@ class DeviceSimulator:
                 pass
 
     async def _loop(self):
-        """Main simulator loop: every 2 seconds, toggle a random device."""
         while self.running:
             try:
-                await asyncio.sleep(10)  # Wait for 10 seconds before toggling a device
+                await asyncio.sleep(10)
 
-                # Get a session and pick a random device
                 db = SessionLocal()
                 try:
                     svc = DeviceService(db)
@@ -43,28 +38,8 @@ class DeviceSimulator:
                     if not devices:
                         continue
 
-                    # Pick a random device and toggle it
                     device = random.choice(devices)
-                    toggled_device = svc.toggle_device(device.id)
-
-                    # Broadcast the device update
-                    await manager.broadcast(
-                        "device_updated",
-                        {
-                            "id": toggled_device.id,
-                            "name": toggled_device.name,
-                            "is_active": toggled_device.is_active,
-                            "power_rating": toggled_device.power_rating,
-                            "last_updated": toggled_device.last_updated.isoformat(),
-                        },
-                    )
-
-                    # Broadcast the power update
-                    total_power = svc.get_total_power()
-                    await manager.broadcast(
-                        "power_updated",
-                        {"total_power": total_power},
-                    )
+                    svc.toggle_device(device.id)
                 finally:
                     db.close()
 
@@ -75,5 +50,4 @@ class DeviceSimulator:
                 await asyncio.sleep(1)
 
 
-# Global simulator instance
 simulator = DeviceSimulator()

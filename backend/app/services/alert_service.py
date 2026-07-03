@@ -41,5 +41,5 @@ class AlertService:
             "message": alert.message,
             "triggered_at": alert.triggered_at.isoformat(),
             "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
-            "metadata": alert.context,
+            "context": alert.context,
         }

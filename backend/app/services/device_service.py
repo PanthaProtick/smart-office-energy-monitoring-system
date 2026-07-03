@@ -1,9 +1,10 @@
+import asyncio
 from datetime import UTC, datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database.models import Device, DeviceLog, PowerLog, AlertRule
+from app.database.models import AlertRule, Device, DeviceLog, PowerLog
 
 
 class DeviceService:
@@ -31,6 +32,16 @@ class DeviceService:
             .scalar()
         )
         return float(total_power or 0.0)
+
+    def _schedule_broadcast(self, event_type: str, payload: dict):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        from app.services.websocket_manager import manager
+
+        loop.create_task(manager.broadcast(event_type, payload))
 
     def toggle_device(self, device_id: int):
         device = self.get_device(device_id)
@@ -62,27 +73,47 @@ class DeviceService:
             self.db.commit()
             self.db.refresh(device)
 
-            # Trigger event-based alert rules
+            self._schedule_broadcast(
+                "device_updated",
+                {
+                    "id": device.id,
+                    "room_id": device.room_id,
+                    "name": device.name,
+                    "type": device.type.value,
+                    "power_rating": device.power_rating,
+                    "is_active": device.is_active,
+                    "last_updated": device.last_updated.isoformat(),
+                },
+            )
+            self._schedule_broadcast(
+                "power_updated",
+                {
+                    "total_power": total_power,
+                    "timestamp": device.last_updated.isoformat(),
+                },
+            )
+
             from app.services.alert_engine import AlertEngine
+
             engine = AlertEngine(self.db)
 
-            # Check power exceeded
             if engine.check_power_exceeded(total_power):
                 engine.trigger_alert(
                     AlertRule.POWER_EXCEEDED,
                     f"Total power exceeded {engine.POWER_THRESHOLD}W: {total_power:.1f}W",
+                    metadata={"total_power": total_power},
                 )
             else:
-                engine.check_and_resolve_power_exceeded(total_power)
+                engine.resolve_alert(AlertRule.POWER_EXCEEDED)
 
-            # Check room completely active
             if engine.check_room_completely_active(device.room_id):
                 engine.trigger_alert(
                     AlertRule.ROOM_COMPLETELY_ACTIVE,
                     f"All devices in room {device.room_id} are active",
+                    metadata={"room_id": device.room_id},
                 )
             else:
-                engine.check_and_resolve_room_active(device.room_id)
+                engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE)
 
             return device
         except Exception:
