@@ -89,13 +89,6 @@ class DeviceService:
                     "last_updated": last_updated_iso,
                 },
             )
-            self._schedule_broadcast(
-                "power_updated",
-                {
-                    "total_power": total_power,
-                    "timestamp": last_updated_iso,
-                },
-            )
 
             # Lazy import: energy_service is imported by main.py at startup
             # too, and importing it at module level here works fine (no
@@ -105,10 +98,14 @@ class DeviceService:
             from app.services import energy_service
 
             snapshot = energy_service.get_energy_snapshot(self.db)
-            print(
-                f"[energy] total_power_usage_wh={snapshot['total_power_usage_wh']} "
-                f"predicted_power_usage_wh={snapshot['predicted_power_usage_wh']} "
-                f"(elapsed {snapshot['elapsed_hours']}h)"
+            self._schedule_broadcast(
+                "power_updated",
+                {
+                    "total_power": total_power,
+                    "total_power_usage_wh": snapshot["total_power_usage_wh"],
+                    "predicted_power_usage_wh": snapshot["predicted_power_usage_wh"],
+                    "timestamp": last_updated_iso,
+                },
             )
             self._schedule_broadcast(
                 "energy_updated",

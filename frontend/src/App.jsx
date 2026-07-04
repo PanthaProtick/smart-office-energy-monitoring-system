@@ -8,6 +8,8 @@ const WS_URL = import.meta.env.VITE_WS_URL
 
 const formatPower = (value) => `${Number(value || 0).toFixed(1)} W`
 
+const formatEnergy = (value) => `${Number(value || 0).toFixed(2)} Wh`
+
 const formatTime = (value) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -72,6 +74,7 @@ function App() {
   const [rooms, setRooms] = useState([])
   const [alerts, setAlerts] = useState([])
   const [power, setPower] = useState({ total_power: 0, recent_logs: [] })
+  const [energy, setEnergy] = useState({ total_power_usage_wh: 0, predicted_power_usage_wh: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [wsStatus, setWsStatus] = useState('connecting')
@@ -90,8 +93,10 @@ function App() {
       activeDevices,
       activeAlerts,
       totalPower: power.total_power ?? 0,
+      totalEnergy: energy.total_power_usage_wh ?? 0,
+      predictedEnergy: energy.predicted_power_usage_wh ?? 0,
     }
-  }, [devices, alerts, power.total_power])
+  }, [devices, alerts, power.total_power, energy.total_power_usage_wh, energy.predicted_power_usage_wh])
 
   const deviceGroups = useMemo(() => {
     const grouped = rooms.map((room) => ({ room, devices: [] }))
@@ -146,7 +151,27 @@ function App() {
       }
 
       if (message.type === 'power_updated') {
-        setPower((current) => ({ ...current, total_power: message.data?.total_power ?? current.total_power }))
+        setPower((current) => ({
+          ...current,
+          total_power: message.data?.total_power ?? current.total_power,
+        }))
+        setEnergy((current) => ({
+          ...current,
+          total_power_usage_wh:
+            message.data?.total_power_usage_wh ?? current.total_power_usage_wh,
+          predicted_power_usage_wh:
+            message.data?.predicted_power_usage_wh ?? current.predicted_power_usage_wh,
+        }))
+      }
+
+      if (message.type === 'energy_updated') {
+        setEnergy((current) => ({
+          ...current,
+          total_power_usage_wh:
+            message.data?.total_power_usage_wh ?? current.total_power_usage_wh,
+          predicted_power_usage_wh:
+            message.data?.predicted_power_usage_wh ?? current.predicted_power_usage_wh,
+        }))
       }
 
       if (message.type === 'alert_created') {
@@ -167,6 +192,7 @@ function App() {
       setWsStatus('connected')
       socket.send(JSON.stringify({ type: 'subscribe', event_type: 'device_updated' }))
       socket.send(JSON.stringify({ type: 'subscribe', event_type: 'power_updated' }))
+      socket.send(JSON.stringify({ type: 'subscribe', event_type: 'energy_updated' }))
       socket.send(JSON.stringify({ type: 'subscribe', event_type: 'alert_created' }))
     }
 
@@ -215,6 +241,10 @@ function App() {
       setDevices(devicesData)
       setRooms(roomsData)
       setPower(powerData)
+      setEnergy({
+        total_power_usage_wh: powerData.total_power_usage_wh ?? 0,
+        predicted_power_usage_wh: powerData.predicted_power_usage_wh ?? 0,
+      })
       setAlerts(alertsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
@@ -271,6 +301,16 @@ function App() {
           <span>Total power</span>
           <strong>{formatPower(metrics.totalPower)}</strong>
           <small>Updated in real time</small>
+        </article>
+        <article className="metric-card">
+          <span>Energy used</span>
+          <strong>{formatEnergy(metrics.totalEnergy)}</strong>
+          <small>Integrated from power logs</small>
+        </article>
+        <article className="metric-card">
+          <span>Predicted daily energy</span>
+          <strong>{formatEnergy(metrics.predictedEnergy)}</strong>
+          <small>Projected from current usage</small>
         </article>
         <article className="metric-card">
           <span>Active devices</span>
