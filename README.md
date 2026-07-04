@@ -64,7 +64,7 @@ uv sync                                    # installs deps into backend/.venv fr
 cp .env.example .env                       # then fill in GEMINI_API_KEY / DISCORD_WEBHOOK_URL
 
 uv run python -m app.database.init_db      # creates office.db and its tables
-uv run python -m app.database.seed         # seeds 3 rooms with 6 devices each
+uv run python -m app.database.seed         # seeds 3 rooms with 5 devices each (3 lights, 2 fans)
 
 uv run uvicorn app.main:app --reload       # serves http://127.0.0.1:8000
 ```

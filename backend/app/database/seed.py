@@ -31,9 +31,9 @@ def seed_db():
             print("Database already seeded.")
             return
 
-        drawing_room = Room(name="Drawing Room", device_count=6)
-        work_room_1 = Room(name="Work Room 1", device_count=6)
-        work_room_2 = Room(name="Work Room 2", device_count=6)
+        drawing_room = Room(name="Drawing Room", device_count=5)
+        work_room_1 = Room(name="Work Room 1", device_count=5)
+        work_room_2 = Room(name="Work Room 2", device_count=5)
 
         db.add_all([drawing_room, work_room_1, work_room_2])
         db.commit()
@@ -48,19 +48,16 @@ def seed_db():
             create_device(drawing_room, "Light 3", DeviceType.LIGHT, 20),
             create_device(drawing_room, "Fan 1", DeviceType.FAN, 75),
             create_device(drawing_room, "Fan 2", DeviceType.FAN, 75),
-            create_device(drawing_room, "Fan 3", DeviceType.FAN, 75),
             create_device(work_room_1, "Light 1", DeviceType.LIGHT, 20),
             create_device(work_room_1, "Light 2", DeviceType.LIGHT, 20),
             create_device(work_room_1, "Light 3", DeviceType.LIGHT, 20),
             create_device(work_room_1, "Fan 1", DeviceType.FAN, 75),
             create_device(work_room_1, "Fan 2", DeviceType.FAN, 75),
-            create_device(work_room_1, "Fan 3", DeviceType.FAN, 75),
             create_device(work_room_2, "Light 1", DeviceType.LIGHT, 20),
             create_device(work_room_2, "Light 2", DeviceType.LIGHT, 20),
             create_device(work_room_2, "Light 3", DeviceType.LIGHT, 20),
             create_device(work_room_2, "Fan 1", DeviceType.FAN, 75),
             create_device(work_room_2, "Fan 2", DeviceType.FAN, 75),
-            create_device(work_room_2, "Fan 3", DeviceType.FAN, 75),
         ]
 
         db.add_all(devices)
