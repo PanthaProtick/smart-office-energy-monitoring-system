@@ -1,0 +1,1215 @@
+diff -ruN a/frontend/index.html b/frontend/index.html
+--- a/frontend/index.html	2026-07-04 11:03:38.303272671 +0000
++++ b/frontend/index.html	2026-07-04 11:03:38.311178889 +0000
+@@ -4,7 +4,7 @@
+     <meta charset="UTF-8" />
+     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>frontend</title>
++    <title>Dashboard</title>
+   </head>
+   <body>
+     <div id="root"></div>
+diff -ruN a/frontend/src/App.css b/frontend/src/App.css
+--- a/frontend/src/App.css	2026-07-04 11:03:38.303722459 +0000
++++ b/frontend/src/App.css	2026-07-04 11:03:38.311731594 +0000
+@@ -2,7 +2,6 @@
+   min-height: 100vh;
+ }
+ 
+-.dashboard-shell,
+ :root {
+   --bg-top: #0e1730;
+   --bg-mid: #12213b;
+@@ -18,25 +17,13 @@
+   --shadow: 0 18px 60px rgba(2, 6, 23, 0.28);
+ }
+ 
+-[data-theme='light'] {
+-  --bg-top: #eef5ff;
+-  --bg-mid: #f8fbff;
+-  --bg-bottom: #edf3ff;
+-  --surface: rgba(255, 255, 255, 0.84);
+-  --surface-strong: rgba(248, 250, 252, 0.96);
+-  --surface-soft: rgba(241, 245, 249, 0.88);
+-  --border: rgba(148, 163, 184, 0.22);
+-  --text: #0f172a;
+-  --muted: #475569;
+-  --accent: #0ea5e9;
+-  --accent-2: #f59e0b;
+-  --shadow: 0 18px 55px rgba(15, 23, 42, 0.12);
+-}
+-
+ .dashboard-shell {
+   min-height: 100vh;
+-  padding: 32px;
++  padding: 24px;
+   box-sizing: border-box;
++  display: flex;
++  flex-direction: column;
++  gap: 18px;
+   background:
+     radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 28%),
+     radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 30%),
+@@ -44,185 +31,47 @@
+   color: var(--text);
+ }
+ 
+-.device-card.device-off .fan-icon {
+-  opacity: 0.55;
+-  animation-play-state: paused;
+-}
+-.event-card {
+-  border: 1px solid var(--border);
+-  background: var(--surface);
+-  backdrop-filter: blur(18px);
+-  box-shadow: var(--shadow);
+-}
++/* ---------- Top bar ---------- */
+ 
+-.hero-panel {
+-  border-radius: 28px;
+-  padding: 28px;
++.topbar {
++  border-radius: 22px;
++  padding: 16px 22px;
+   display: flex;
+   justify-content: space-between;
+-  gap: 24px;
+-  align-items: flex-start;
++  align-items: center;
++  gap: 20px;
+   border: 1px solid var(--border);
+   background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), var(--surface));
+   box-shadow: var(--shadow);
+ }
+ 
+-.light-visual,
+-.fan-visual {
+-  position: relative;
+-  width: 124px;
+-  height: 124px;
+-  display: grid;
+-  place-items: center;
+-}
+-
+-.light-visual::before,
+-.fan-visual::before {
+-  content: '';
+-  position: absolute;
+-  inset: 10px;
+-  border-radius: 50%;
+-  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 38%, transparent) 0%, transparent 68%);
+-  filter: blur(14px);
+-  opacity: 0;
+-  transition: opacity 180ms ease, transform 180ms ease;
+-}
+-
+-.light-visual::after,
+-.fan-visual::after {
+-  content: '';
+-  position: absolute;
+-  inset: 0;
+-  border-radius: 24px;
+-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 68%);
+-  opacity: 0;
+-}
+-
+-.light-visual-on::before,
+-.fan-visual-on::before {
+-  opacity: calc(var(--glow-strength) * 1.25);
+-  transform: scale(1.08);
+-}
+-
+-.light-visual-on::after,
+-.fan-visual-on::after {
+-  opacity: 1;
+-}
+-
+-.light-visual-off,
+-.fan-visual-off {
+-  opacity: 0.68;
+-  filter: saturate(0.45) brightness(0.82);
+-}
+-
+-.light-image,
+-.fan-image {
+-  position: relative;
+-  z-index: 1;
+-  width: 110px;
+-  height: 110px;
+-  object-fit: contain;
+-  transform-origin: 50% 50%;
+-  transition:
+-    transform 220ms ease,
+-    filter 220ms ease,
+-    opacity 220ms ease;
+-}
+-
+-.light-image {
+-  animation: none;
+-}
+-
+-.light-visual-on .light-image {
+-  animation: light-flash 0.9s ease-in-out infinite;
+-  filter:
+-    drop-shadow(0 0 22px rgba(250, 204, 21, 0.66))
+-    drop-shadow(0 0 44px rgba(253, 224, 71, 0.3))
+-    drop-shadow(0 0 72px rgba(255, 241, 160, 0.14));
+-}
+-
+-.light-visual-off .light-image {
+-  opacity: 0.7;
+-  filter: grayscale(0.06) brightness(0.98) contrast(1.03);
+-}
+-
+-.fan-image {
+-  animation: none;
+-}
+-
+-.fan-visual-on .fan-image {
+-  animation: fan-spin-image var(--fan-duration, 2.4s) linear infinite;
+-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 45%, transparent));
+-}
+-
+-.fan-visual-off .fan-image {
+-  opacity: 0.72;
+-  animation: none;
+-  filter: grayscale(0.06) brightness(0.95);
++.brand h1 {
++  margin: 2px 0 0;
++  font-size: 22px;
++  color: var(--text);
+ }
+ 
+-
+ .eyebrow,
+ .section-label {
+   text-transform: uppercase;
+   letter-spacing: 0.18em;
+   color: var(--accent);
+   font-size: 12px;
+-  margin: 0 0 10px;
+-}
+-
+-.hero-panel h1,
+-.panel h2,
+-.room-card h3 {
+   margin: 0;
+-  color: var(--text);
+-}
+-
+-.hero-copy,
+-.muted,
+-.metric-card small,
+-.device-card small,
+-.alert-card small,
+-.event-card small,
+-.empty-inline,
+-.empty-state {
+-  color: var(--muted);
+-}
+-
+-.hero-actions {
+-  display: grid;
+-  gap: 12px;
+-  min-width: 260px;
+-}
+-
+-.theme-toggle {
+-  border: 1px solid var(--border);
+-  border-radius: 999px;
+-  padding: 12px 16px;
+-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, white 4%), var(--surface));
+-  color: var(--text);
+-  cursor: pointer;
+-  box-shadow: var(--shadow);
+-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+-}
+-
+-.theme-toggle:hover {
+-  transform: translateY(-1px);
+-  border-color: rgba(96, 165, 250, 0.35);
+ }
+ 
+ .connection-pill {
+-  min-width: 220px;
+-  border-radius: 999px;
+-  padding: 14px 18px;
+   display: flex;
+-  flex-direction: column;
+-  gap: 4px;
+-  align-items: flex-start;
++  align-items: center;
++  gap: 10px;
++  border-radius: 999px;
++  padding: 8px 16px;
++  white-space: nowrap;
+ }
+ 
+ .connection-pill strong {
+   text-transform: capitalize;
++  font-size: 13px;
+ }
+ 
+ .connection-connected {
+@@ -242,27 +91,29 @@
+ }
+ 
+ .pulse {
+-  width: 10px;
+-  height: 10px;
++  width: 9px;
++  height: 9px;
+   border-radius: 999px;
+   background: currentColor;
+   box-shadow: 0 0 0 0 currentColor;
+   animation: pulse 1.8s infinite;
++  flex-shrink: 0;
+ }
+ 
++/* ---------- Metrics ---------- */
++
+ .metrics-grid {
+-  margin-top: 24px;
+   display: grid;
+-  grid-template-columns: repeat(4, minmax(0, 1fr));
+-  gap: 16px;
++  grid-template-columns: repeat(6, minmax(0, 1fr));
++  gap: 14px;
+ }
+ 
+ .metric-card {
+-  border-radius: 22px;
+-  padding: 20px;
++  border-radius: 18px;
++  padding: 14px 16px;
+   display: flex;
+   flex-direction: column;
+-  gap: 8px;
++  gap: 6px;
+   border: 1px solid var(--border);
+   background: var(--surface-strong);
+   box-shadow: var(--shadow);
+@@ -270,89 +121,67 @@
+ 
+ .metric-card span {
+   color: var(--muted);
+-  font-size: 14px;
++  font-size: 13px;
+ }
+ 
+ .metric-card strong {
+-  font-size: 30px;
++  font-size: 24px;
+   color: var(--text);
+ }
+ 
+-.content-grid {
+-  margin-top: 24px;
+-  display: grid;
+-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+-  gap: 24px;
+-}
+-
+-.panel {
+-  border-radius: 26px;
+-  padding: 22px;
+-  border: 1px solid var(--border);
+-  background: var(--surface);
+-  backdrop-filter: blur(18px);
+-  box-shadow: var(--shadow);
+-}
+-
+-.panel-wide {
+-  min-height: 100%;
+-}
++/* ---------- Rooms (the heart of the page) ---------- */
+ 
+-.panel-header {
+-  display: flex;
+-  justify-content: space-between;
+-  align-items: flex-start;
+-  gap: 16px;
+-  margin-bottom: 18px;
++.rooms-hero {
++  flex: 1;
++  min-height: 0;
+ }
+ 
+-.room-list,
+-.alert-list,
+-.reading-list {
++.room-columns {
++  height: 100%;
+   display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
+   gap: 16px;
+ }
+ 
+ .room-card {
++  display: flex;
++  flex-direction: column;
+   border-radius: 22px;
+-  padding: 18px;
++  padding: 16px;
+   border: 1px solid var(--border);
+-  background: var(--surface-soft);
++  background: var(--surface);
++  backdrop-filter: blur(18px);
++  box-shadow: var(--shadow);
+ }
+ 
+-.room-card-header,
+-.device-topline,
+-.alert-row,
+-.reading-row {
+-  display: flex;
+-  justify-content: space-between;
+-  align-items: center;
+-  gap: 16px;
++.room-card-header {
++  margin-bottom: 12px;
+ }
+ 
+-.badge {
+-  border-radius: 999px;
+-  padding: 6px 12px;
+-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+-  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+-  font-size: 12px;
++.room-card-header h3 {
++  margin: 4px 0 0;
++  color: var(--text);
+ }
+ 
+ .device-grid {
+-  margin-top: 16px;
++  flex: 1;
+   display: grid;
+-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+-  gap: 14px;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  grid-auto-rows: 1fr;
++  gap: 10px;
+ }
+ 
+ .device-card {
+   position: relative;
+   overflow: hidden;
+-  border-radius: 22px;
+-  padding: 18px;
+-  display: grid;
+-  gap: 14px;
+-  min-height: 220px;
++  border-radius: 18px;
++  padding: 10px;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++  text-align: center;
+   border: 1px solid var(--border);
+   background: var(--surface-strong);
+   transition:
+@@ -363,8 +192,8 @@
+ }
+ 
+ .device-card:hover {
+-  transform: translateY(-4px) scale(1.01);
+-  box-shadow: 0 24px 72px rgba(2, 6, 23, 0.24);
++  transform: translateY(-2px);
++  box-shadow: 0 20px 48px rgba(2, 6, 23, 0.24);
+ }
+ 
+ .device-card::before {
+@@ -384,206 +213,180 @@
+ .device-card.device-light.device-on {
+   box-shadow:
+     inset 0 0 0 1px rgba(251, 191, 36, 0.18),
+-    0 18px 48px rgba(245, 158, 11, 0.14);
++    0 14px 36px rgba(245, 158, 11, 0.14);
+ }
+ 
+ .device-card.device-fan.device-on {
+   box-shadow:
+     inset 0 0 0 1px rgba(45, 212, 191, 0.18),
+-    0 18px 48px rgba(20, 184, 166, 0.14);
++    0 14px 36px rgba(20, 184, 166, 0.14);
+ }
+ 
+ .device-card.device-off .device-visual {
+   filter: saturate(0.4) brightness(0.78);
+ }
+ 
+-.device-card.device-off .bulb-bulb,
+-.device-card.device-off .bulb-glow {
+-  opacity: 0.5;
+-}
+-
+-.device-card.device-off .fan-icon {
+-  opacity: 0.55;
+-  animation-play-state: paused;
+-}
+-
+ .device-visual {
+   position: relative;
+-  min-height: 110px;
+   display: grid;
+   place-items: center;
+ }
+ 
+-.bulb-icon {
++/* ---------- Device visuals (light / fan) ---------- */
++
++.light-visual,
++.fan-visual {
+   position: relative;
+-  width: 120px;
+-  height: 120px;
++  width: 52px;
++  height: 52px;
++  display: grid;
++  place-items: center;
+ }
+ 
+-.bulb-glow {
++.light-visual::before,
++.fan-visual::before {
++  content: '';
+   position: absolute;
+-  inset: 14px;
++  inset: 4px;
+   border-radius: 50%;
+-  background: radial-gradient(circle, rgba(252, 211, 77, 0.95) 0%, rgba(252, 211, 77, 0.28) 40%, transparent 72%);
+-  opacity: var(--glow-strength);
+-  filter: blur(12px);
+-  animation: bulb-breathe 2.6s ease-in-out infinite;
++  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 38%, transparent) 0%, transparent 68%);
++  filter: blur(8px);
++  opacity: 0;
++  transition: opacity 180ms ease, transform 180ms ease;
+ }
+ 
+-.bulb-bulb {
++.light-visual::after,
++.fan-visual::after {
++  content: '';
+   position: absolute;
+-  left: 50%;
+-  top: 16px;
+-  width: 72px;
+-  height: 92px;
+-  transform: translateX(-50%);
+-  border-radius: 38px 38px 26px 26px;
+-  background: linear-gradient(180deg, #fff7d6 0%, #f5c84c 48%, #a16207 100%);
+-  box-shadow: 0 0 32px rgba(250, 204, 21, 0.4);
++  inset: 0;
++  border-radius: 14px;
++  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 68%);
++  opacity: 0;
+ }
+ 
+-.bulb-bulb::before {
+-  content: '';
+-  position: absolute;
+-  inset: 10px 14px 34px;
+-  border-radius: 999px;
+-  background: rgba(255, 255, 255, 0.18);
+-  filter: blur(3px);
++.light-visual-on::before,
++.fan-visual-on::before {
++  opacity: calc(var(--glow-strength) * 1.25);
++  transform: scale(1.08);
+ }
+ 
+-.bulb-base {
+-  position: absolute;
+-  left: 50%;
+-  bottom: 12px;
+-  width: 44px;
+-  height: 28px;
+-  transform: translateX(-50%);
+-  border-radius: 10px 10px 14px 14px;
+-  background: linear-gradient(180deg, #64748b, #334155);
+-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08);
++.light-visual-on::after,
++.fan-visual-on::after {
++  opacity: 1;
+ }
+ 
+-.bulb-base::before {
+-  content: '';
+-  position: absolute;
+-  inset: 5px 8px auto;
+-  height: 4px;
+-  border-radius: 999px;
+-  background: rgba(226, 232, 240, 0.36);
+-  box-shadow: 0 8px 0 rgba(226, 232, 240, 0.24), 0 16px 0 rgba(226, 232, 240, 0.18);
++.light-visual-off,
++.fan-visual-off {
++  opacity: 0.68;
++  filter: saturate(0.45) brightness(0.82);
+ }
+ 
+-.fan-icon {
++.light-image,
++.fan-image {
+   position: relative;
+-  width: 126px;
+-  height: 126px;
+-  border-radius: 50%;
+-  display: grid;
+-  place-items: center;
++  z-index: 1;
++  width: 40px;
++  height: 40px;
++  object-fit: contain;
++  transform-origin: 50% 50%;
++  transition:
++    transform 220ms ease,
++    filter 220ms ease,
++    opacity 220ms ease;
+ }
+ 
+-.fan-icon::before {
+-  content: '';
+-  position: absolute;
+-  inset: 12px;
+-  border-radius: 50%;
+-  background: radial-gradient(circle, rgba(45, 212, 191, 0.2) 0%, transparent 68%);
+-  filter: blur(10px);
+-  opacity: var(--glow-strength);
++.light-image {
++  animation: none;
+ }
+ 
+-.fan-video-shell {
+-  position: relative;
+-  z-index: 1;
+-  width: 128px;
+-  height: 128px;
+-  display: grid;
+-  place-items: center;
+-  border-radius: 50%;
+-  overflow: hidden;
+-  background:
+-    radial-gradient(circle at center, rgba(148, 163, 184, 0.14) 0%, rgba(15, 23, 42, 0.72) 58%, rgba(2, 6, 23, 0.9) 100%);
+-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
++.light-visual-on .light-image {
++  animation: light-flash 0.9s ease-in-out infinite;
++  filter:
++    drop-shadow(0 0 12px rgba(250, 204, 21, 0.66))
++    drop-shadow(0 0 22px rgba(253, 224, 71, 0.3));
+ }
+ 
+-.fan-video-shell::before {
+-  content: '';
+-  position: absolute;
+-  inset: 14px;
+-  border-radius: 50%;
+-  border: 1px solid rgba(148, 163, 184, 0.16);
+-  pointer-events: none;
++.light-visual-off .light-image {
++  opacity: 0.7;
++  filter: grayscale(0.06) brightness(0.98) contrast(1.03);
+ }
+ 
+-.fan-video-shell::after {
+-  content: '';
+-  position: absolute;
+-  inset: 0;
+-  background: radial-gradient(circle at center, transparent 35%, rgba(45, 212, 191, 0.16) 100%);
+-  opacity: var(--glow-strength);
+-  pointer-events: none;
++.fan-image {
++  animation: none;
+ }
+ 
+-.fan-video {
+-  position: relative;
+-  z-index: 1;
+-  width: 122px;
+-  height: 122px;
+-  object-fit: cover;
+-  border-radius: 50%;
+-  transform: scale(1.02);
+-  filter: saturate(1.05) contrast(1.05);
++.fan-visual-on .fan-image {
++  animation: fan-spin-image var(--fan-duration, 2.4s) linear infinite;
++  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 45%, transparent));
+ }
+ 
+-.fan-video-on {
+-  box-shadow:
+-    0 0 0 1px rgba(45, 212, 191, 0.12),
+-    0 0 32px rgba(45, 212, 191, 0.12);
++.fan-visual-off .fan-image {
++  opacity: 0.72;
++  animation: none;
++  filter: grayscale(0.06) brightness(0.95);
+ }
+ 
+-.fan-video-off {
+-  opacity: 0.56;
+-  filter: saturate(0.5) brightness(0.76);
+-}
++/* ---------- Device meta ---------- */
+ 
+ .device-meta {
+   position: relative;
+   z-index: 1;
+-  display: grid;
+-  gap: 6px;
+-}
+-
+-.device-topline {
+-  align-items: flex-start;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 4px;
+ }
+ 
+-.device-topline strong {
+-  font-size: 18px;
++.device-meta strong {
++  font-size: 13px;
+   color: var(--text);
++  line-height: 1.2;
+ }
+ 
+-.device-topline span {
++.device-meta span {
+   border-radius: 999px;
+-  padding: 4px 10px;
+-  font-size: 12px;
++  padding: 2px 9px;
++  font-size: 11px;
+   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+   color: color-mix(in srgb, var(--accent) 65%, var(--text));
+ }
+ 
+-.device-meta small {
+-  font-size: 13px;
++/* ---------- Alerts strip ---------- */
++
++.alerts-strip {
++  border-radius: 22px;
++  padding: 16px 18px;
++  border: 1px solid var(--border);
++  background: var(--surface);
++  backdrop-filter: blur(18px);
++  box-shadow: var(--shadow);
+ }
+ 
+-.device-light.device-on .bulb-bulb {
+-  animation: bulb-pulse 2.3s ease-in-out infinite;
++.panel-header {
++  margin-bottom: 12px;
+ }
+ 
+-.device-fan.device-on .fan-icon {
+-  animation-duration: var(--fan-duration);
++.alert-list-compact {
++  display: flex;
++  gap: 14px;
++  flex-wrap: wrap;
+ }
+ 
+-.device-fan.device-on .fan-image {
+-  animation-duration: var(--fan-duration, 2.4s);
++.alert-card {
++  flex: 1;
++  min-width: 240px;
++  border-radius: 16px;
++  padding: 12px 14px;
++  border: 1px solid var(--border);
++  background: var(--surface-soft);
++}
++
++.alert-row {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  gap: 16px;
+ }
+ 
+ .alert-row span {
+@@ -594,20 +397,9 @@
+   color: var(--muted);
+ }
+ 
+-.sidebar {
+-  display: grid;
+-  gap: 24px;
+-}
+-
+-.reading-row strong {
+-  color: #f8fafc;
+-}
+-
+-.alert-card {
+-  border-radius: 18px;
+-  padding: 14px;
+-  border: 1px solid var(--border);
+-  background: var(--surface-soft);
++.alert-card p {
++  margin: 8px 0 4px;
++  font-size: 14px;
+ }
+ 
+ .alert-active {
+@@ -619,24 +411,11 @@
+   opacity: 0.88;
+ }
+ 
+-.alert-context,
+-.event-card pre {
+-  margin: 12px 0 0;
+-  padding: 12px;
+-  border-radius: 14px;
+-  background: color-mix(in srgb, var(--surface-strong) 92%, #000 8%);
+-  color: var(--text);
+-  overflow: auto;
+-  white-space: pre-wrap;
+-  word-break: break-word;
+-  font-size: 12px;
+-}
+-
+-.event-card {
+-  border-radius: 18px;
+-  padding: 14px;
+-  border: 1px solid var(--border);
+-  background: var(--surface-soft);
++.muted,
++.alert-card small,
++.empty-inline,
++.empty-state {
++  color: var(--muted);
+ }
+ 
+ .empty-state,
+@@ -664,39 +443,15 @@
+   }
+ }
+ 
+-@keyframes bulb-pulse {
+-  0%,
+-  100% {
+-    transform: translateX(-50%) scale(1);
+-    filter: brightness(1);
+-  }
+-  50% {
+-    transform: translateX(-50%) scale(1.03);
+-    filter: brightness(1.08);
+-  }
+-}
+-
+-@keyframes bulb-breathe {
+-  0%,
+-  100% {
+-    transform: scale(0.96);
+-    opacity: calc(var(--glow-strength) * 0.72);
+-  }
+-  50% {
+-    transform: scale(1.03);
+-    opacity: calc(var(--glow-strength) * 1);
+-  }
+-}
+-
+ @keyframes light-flash {
+   0%,
+   100% {
+     transform: scale(1);
+-    filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.4)) drop-shadow(0 0 30px rgba(253, 224, 71, 0.12));
++    filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.4)) drop-shadow(0 0 18px rgba(253, 224, 71, 0.12));
+   }
+   50% {
+     transform: scale(1.08);
+-    filter: drop-shadow(0 0 26px rgba(250, 204, 21, 0.72)) drop-shadow(0 0 48px rgba(253, 224, 71, 0.28));
++    filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.72)) drop-shadow(0 0 28px rgba(253, 224, 71, 0.28));
+   }
+ }
+ 
+@@ -709,33 +464,18 @@
+   }
+ }
+ 
+-@keyframes fan-bob {
+-  0%,
+-  100% {
+-    filter: drop-shadow(0 0 16px rgba(45, 212, 191, 0.18));
+-  }
+-  50% {
+-    filter: drop-shadow(0 0 22px rgba(45, 212, 191, 0.3));
+-  }
+-}
+-
+-@keyframes fan-spin {
+-  from {
+-    transform: rotate(0deg);
+-  }
+-  to {
+-    transform: rotate(360deg);
++@media (max-width: 1100px) {
++  .metrics-grid {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
+   }
+-}
+ 
+-@media (max-width: 1100px) {
+-  .metrics-grid,
+-  .content-grid {
++  .room-columns {
+     grid-template-columns: 1fr;
+   }
+ 
+-  .hero-panel {
++  .topbar {
+     flex-direction: column;
++    align-items: flex-start;
+   }
+ }
+ 
+@@ -744,21 +484,20 @@
+     padding: 16px;
+   }
+ 
+-  .hero-panel,
+-  .panel,
+-  .metric-card,
++  .topbar,
++  .alerts-strip,
+   .room-card,
++  .metric-card,
+   .device-card,
+-  .alert-card,
+-  .event-card {
++  .alert-card {
+     border-radius: 18px;
+   }
+ 
+-  .room-card-header,
+-  .device-topline,
+-  .alert-row,
+-  .reading-row {
+-    align-items: flex-start;
+-    flex-direction: column;
++  .metrics-grid {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++
++  .device-grid {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
+   }
+ }
+diff -ruN a/frontend/src/App.jsx b/frontend/src/App.jsx
+--- a/frontend/src/App.jsx	2026-07-04 11:03:38.303797081 +0000
++++ b/frontend/src/App.jsx	2026-07-04 11:03:38.311775785 +0000
+@@ -17,7 +17,7 @@
+ 
+   return new Intl.DateTimeFormat(undefined, {
+     dateStyle: 'medium',
+-    timeStyle: 'medium',
++    timeStyle: 'short',
+   }).format(date)
+ }
+ 
+@@ -33,15 +33,6 @@
+ 
+ const getDeviceKind = (type) => String(type || '').toLowerCase()
+ 
+-const safeJson = (value) => {
+-  if (!value) return null
+-  try {
+-    return typeof value === 'string' ? JSON.parse(value) : value
+-  } catch {
+-    return value
+-  }
+-}
+-
+ const getWebSocketUrl = () => {
+   if (WS_URL) {
+     return WS_URL
+@@ -78,8 +69,6 @@
+   const [loading, setLoading] = useState(true)
+   const [error, setError] = useState('')
+   const [wsStatus, setWsStatus] = useState('connecting')
+-  const [lastEvent, setLastEvent] = useState(null)
+-  const [theme, setTheme] = useState(() => window.localStorage.getItem('dashboard-theme') ?? 'dark')
+   const socketRef = useRef(null)
+   const reconnectTimerRef = useRef(null)
+   const mountedRef = useRef(true)
+@@ -114,11 +103,6 @@
+     return [...grouped, ...(fallback.length ? [{ room: null, devices: fallback }] : [])]
+   }, [devices, rooms])
+ 
+-  useEffect(() => {
+-    document.documentElement.dataset.theme = theme
+-    window.localStorage.setItem('dashboard-theme', theme)
+-  }, [theme])
+-
+   const upsertDevice = (incoming) => {
+     if (!incoming?.id) return
+     setDevices((current) => {
+@@ -144,7 +128,6 @@
+   const handleMessage = (event) => {
+     try {
+       const message = JSON.parse(event.data)
+-      setLastEvent({ type: message.type, data: message.data, receivedAt: new Date().toISOString() })
+ 
+       if (message.type === 'device_updated') {
+         upsertDevice(message.data)
+@@ -270,29 +253,15 @@
+   }, [])
+ 
+   return (
+-    <main className={`dashboard-shell theme-${theme}`}>
+-      <header className="hero-panel">
+-        <div>
++    <main className="dashboard-shell">
++      <header className="topbar">
++        <div className="brand">
+           <p className="eyebrow">Smart Office Energy Monitoring</p>
+-          <h1>Live dashboard, no polling.</h1>
+-          <p className="hero-copy">
+-            Initial data is loaded once from REST, then the UI stays synchronized
+-            through WebSocket events for devices, power, and alerts.
+-          </p>
++          <h1>Dashboard</h1>
+         </div>
+-        <div className="hero-actions">
+-          <button
+-            type="button"
+-            className="theme-toggle"
+-            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+-          >
+-            {theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+-          </button>
+-          <div className={`connection-pill connection-${wsStatus}`}>
+-            <span className="pulse" />
+-            <strong>{wsStatus}</strong>
+-            <span>WebSocket stream</span>
+-          </div>
++        <div className={`connection-pill connection-${wsStatus}`}>
++          <span className="pulse" />
++          <strong>{wsStatus}</strong>
+         </div>
+       </header>
+ 
+@@ -300,152 +269,96 @@
+         <article className="metric-card">
+           <span>Total power</span>
+           <strong>{formatPower(metrics.totalPower)}</strong>
+-          <small>Updated in real time</small>
+         </article>
+         <article className="metric-card">
+           <span>Energy used</span>
+           <strong>{formatEnergy(metrics.totalEnergy)}</strong>
+-          <small>Integrated from power logs</small>
+         </article>
+         <article className="metric-card">
+           <span>Predicted daily energy</span>
+           <strong>{formatEnergy(metrics.predictedEnergy)}</strong>
+-          <small>Projected from current usage</small>
+         </article>
+         <article className="metric-card">
+           <span>Active devices</span>
+           <strong>
+             {metrics.activeDevices}/{metrics.totalDevices}
+           </strong>
+-          <small>Synced from device updates</small>
+         </article>
+         <article className="metric-card">
+           <span>Active alerts</span>
+           <strong>{metrics.activeAlerts}</strong>
+-          <small>Resolved alerts remain in history</small>
+         </article>
+         <article className="metric-card">
+           <span>Rooms</span>
+           <strong>{rooms.length}</strong>
+-          <small>Loaded once from REST</small>
+         </article>
+       </section>
+ 
+-      <section className="content-grid">
+-        <div className="panel panel-wide">
+-          <div className="panel-header">
+-            <div>
+-              <p className="section-label">Rooms & devices</p>
+-              <h2>Device status</h2>
+-            </div>
+-            <p className="muted">Live updates arrive over WebSocket</p>
++      <section className="rooms-hero">
++        {loading ? (
++          <div className="empty-state">Loading dashboard data…</div>
++        ) : error ? (
++          <div className="empty-state error-state">{error}</div>
++        ) : (
++          <div className="room-columns">
++            {deviceGroups.map((group) => (
++              <section className="room-card" key={group.room?.id ?? 'fallback'}>
++                <div className="room-card-header">
++                  <p className="section-label">
++                    {group.room ? group.room.name : 'Unassigned devices'}
++                  </p>
++                  <h3>
++                    {group.room
++                      ? `${group.devices.filter((device) => device.is_active).length}/${group.devices.length} active`
++                      : `${group.devices.length} device(s)`}
++                  </h3>
++                </div>
++
++                <div className="device-grid">
++                  {group.devices.map((device) => (
++                    <article
++                      key={device.id}
++                      className={`device-card device-${getDeviceKind(device.type) || 'generic'} ${device.is_active ? 'device-on' : 'device-off'}`}
++                      style={{
++                        '--fan-duration': getFanSpinDuration(device.power_rating),
++                        '--glow-strength': device.is_active
++                          ? Math.max(0.5, Math.min(1.1, Number(device.power_rating || 0) / 80 || 0.6))
++                          : 0,
++                      }}
++                    >
++                      <div className="device-visual" aria-hidden="true">
++                        <DeviceVisual device={device} />
++                      </div>
++                      <div className="device-meta">
++                        <strong>{device.name}</strong>
++                        <span>{formatPower(device.power_rating)}</span>
++                      </div>
++                    </article>
++                  ))}
++                </div>
++              </section>
++            ))}
+           </div>
++        )}
++      </section>
+ 
+-          {loading ? (
+-            <div className="empty-state">Loading dashboard data…</div>
+-          ) : error ? (
+-            <div className="empty-state error-state">{error}</div>
+-          ) : (
+-            <div className="room-list">
+-              {deviceGroups.map((group) => (
+-                <section className="room-card" key={group.room?.id ?? 'fallback'}>
+-                  <div className="room-card-header">
+-                    <div>
+-                      <p className="section-label">
+-                        {group.room ? group.room.name : 'Unassigned devices'}
+-                      </p>
+-                      <h3>
+-                        {group.room
+-                          ? `${group.devices.filter((device) => device.is_active).length}/${group.devices.length} active`
+-                          : `${group.devices.length} device(s)`}
+-                      </h3>
+-                    </div>
+-                    {group.room && (
+-                      <span className="badge">{group.room.device_count} planned</span>
+-                    )}
+-                  </div>
+-
+-                  <div className="device-grid">
+-                    {group.devices.map((device) => (
+-                      <article
+-                        key={device.id}
+-                        className={`device-card device-${getDeviceKind(device.type) || 'generic'} ${device.is_active ? 'device-on' : 'device-off'}`}
+-                        style={{
+-                          '--fan-duration': getFanSpinDuration(device.power_rating),
+-                          '--glow-strength': device.is_active
+-                            ? Math.max(0.5, Math.min(1.1, Number(device.power_rating || 0) / 80 || 0.6))
+-                            : 0,
+-                        }}
+-                      >
+-                        <div className="device-visual" aria-hidden="true">
+-                          <DeviceVisual device={device} />
+-                        </div>
+-                        <div className="device-meta">
+-                          <div className="device-topline">
+-                            <strong>{device.name}</strong>
+-                            <span>{formatPower(device.power_rating)}</span>
+-                          </div>
+-                          <small>Last updated {formatTime(device.last_updated)}</small>
+-                        </div>
+-                      </article>
+-                    ))}
+-                  </div>
+-                </section>
+-              ))}
+-            </div>
+-          )}
++      <section className="alerts-strip">
++        <div className="panel-header">
++          <p className="section-label">Recent alerts</p>
+         </div>
+-
+-        <aside className="sidebar">
+-          <section className="panel">
+-            <div className="panel-header">
+-              <div>
+-                <p className="section-label">Alerts</p>
+-                <h2>Active & history</h2>
+-              </div>
+-            </div>
+-            <div className="alert-list">
+-              {alerts.slice(0, 8).map((alert) => {
+-                const parsedContext = safeJson(alert.context)
+-                return (
+-                  <article className={`alert-card alert-${alert.status}`} key={alert.id}>
+-                    <div className="alert-row">
+-                      <strong>{alert.rule}</strong>
+-                      <span>{alert.status}</span>
+-                    </div>
+-                    <p>{alert.message}</p>
+-                    <small>
+-                      Triggered {formatTime(alert.triggered_at)}
+-                      {alert.resolved_at ? ` • Resolved ${formatTime(alert.resolved_at)}` : ''}
+-                    </small>
+-                    {parsedContext && (
+-                      <pre className="alert-context">{JSON.stringify(parsedContext, null, 2)}</pre>
+-                    )}
+-                  </article>
+-                )
+-              })}
+-              {!alerts.length && <div className="empty-inline">No alerts yet.</div>}
+-            </div>
+-          </section>
+-
+-          <section className="panel">
+-            <div className="panel-header">
+-              <div>
+-                <p className="section-label">Stream</p>
+-                <h2>Last event</h2>
++        <div className="alert-list-compact">
++          {alerts.slice(0, 2).map((alert) => (
++            <article className={`alert-card alert-${alert.status}`} key={alert.id}>
++              <div className="alert-row">
++                <strong>{alert.rule}</strong>
++                <span>{alert.status}</span>
+               </div>
+-            </div>
+-            {lastEvent ? (
+-              <div className="event-card">
+-                <strong>{lastEvent.type}</strong>
+-                <pre>{JSON.stringify(lastEvent.data, null, 2)}</pre>
+-                <small>Received {formatTime(lastEvent.receivedAt)}</small>
+-              </div>
+-            ) : (
+-              <div className="empty-inline">Waiting for the first live event…</div>
+-            )}
+-          </section>
+-        </aside>
++              <p>{alert.message}</p>
++              <small>{formatTime(alert.triggered_at)}</small>
++            </article>
++          ))}
++          {!alerts.length && <div className="empty-inline">No alerts yet.</div>}
++        </div>
+       </section>
+     </main>
+   )
