@@ -89,8 +89,16 @@ class AlertEngine:
             "rule": alert.rule.value if hasattr(alert.rule, "value") else str(alert.rule),
             "status": alert.status.value if hasattr(alert.status, "value") else str(alert.status),
             "message": alert.message,
-            "triggered_at": alert.triggered_at.isoformat(),
-            "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+            "triggered_at": (
+                alert.triggered_at.isoformat().replace("+00:00", "Z")
+                if alert.triggered_at is not None
+                else None
+            ),
+            "resolved_at": (
+                alert.resolved_at.isoformat().replace("+00:00", "Z")
+                if alert.resolved_at is not None
+                else None
+            ),
             "context": alert.context,
         }
 

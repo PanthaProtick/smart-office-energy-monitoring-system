@@ -73,6 +73,13 @@ class DeviceService:
             self.db.commit()
             self.db.refresh(device)
 
+            # Serialize timestamps as ISO 8601 in UTC with trailing 'Z'
+            last_updated_iso = (
+                device.last_updated.isoformat().replace("+00:00", "Z")
+                if device.last_updated is not None
+                else None
+            )
+
             self._schedule_broadcast(
                 "device_updated",
                 {
@@ -82,14 +89,14 @@ class DeviceService:
                     "type": device.type.value,
                     "power_rating": device.power_rating,
                     "is_active": device.is_active,
-                    "last_updated": device.last_updated.isoformat(),
+                    "last_updated": last_updated_iso,
                 },
             )
             self._schedule_broadcast(
                 "power_updated",
                 {
                     "total_power": total_power,
-                    "timestamp": device.last_updated.isoformat(),
+                    "timestamp": last_updated_iso,
                 },
             )
 

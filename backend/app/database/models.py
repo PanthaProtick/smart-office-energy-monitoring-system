@@ -31,7 +31,7 @@ class Room(Base):
     # active at the same time. Reset to None as soon as any device in the
     # room turns off. Used by AlertEngine.check_room_active_duration to
     # detect a room that has been fully active for 2+ hours.
-    all_active_since = Column(DateTime, nullable=True)
+    all_active_since = Column(DateTime(timezone=True), nullable=True)
 
     devices = relationship(
         "Device",
@@ -59,7 +59,7 @@ class Device(Base):
 
     is_active = Column(Boolean, default=False, nullable=False)
 
-    last_updated = Column(DateTime, nullable=False)
+    last_updated = Column(DateTime(timezone=True), nullable=False)
 
     room = relationship(
         "Room",
@@ -83,7 +83,7 @@ class DeviceLog(Base):
         nullable=False
     )
     is_active = Column(Boolean, nullable=False)
-    timestamp = Column(DateTime, nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
 
     device = relationship(
         "Device",
@@ -96,7 +96,7 @@ class PowerLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     total_power = Column(Float, nullable=False)
-    timestamp = Column(DateTime, nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
 
 
 class AlertStatus(str, enum.Enum):
@@ -118,6 +118,6 @@ class Alert(Base):
     rule = Column(Enum(AlertRule), nullable=False)
     status = Column(Enum(AlertStatus), default=AlertStatus.ACTIVE, nullable=False)
     message = Column(String, nullable=False)
-    triggered_at = Column(DateTime, nullable=False)
-    resolved_at = Column(DateTime, nullable=True)
+    triggered_at = Column(DateTime(timezone=True), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
     context = Column(String, nullable=True)
