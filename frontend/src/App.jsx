@@ -17,7 +17,7 @@ const formatTime = (value) => {
 
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
-    timeStyle: 'medium',
+    timeStyle: 'short',
   }).format(date)
 }
 
@@ -32,15 +32,6 @@ const getFanSpinDuration = (powerRating) => {
 }
 
 const getDeviceKind = (type) => String(type || '').toLowerCase()
-
-const safeJson = (value) => {
-  if (!value) return null
-  try {
-    return typeof value === 'string' ? JSON.parse(value) : value
-  } catch {
-    return value
-  }
-}
 
 const getWebSocketUrl = () => {
   if (WS_URL) {
@@ -78,8 +69,6 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [wsStatus, setWsStatus] = useState('connecting')
-  const [lastEvent, setLastEvent] = useState(null)
-  const [theme, setTheme] = useState(() => window.localStorage.getItem('dashboard-theme') ?? 'dark')
   const socketRef = useRef(null)
   const reconnectTimerRef = useRef(null)
   const mountedRef = useRef(true)
@@ -114,11 +103,6 @@ function App() {
     return [...grouped, ...(fallback.length ? [{ room: null, devices: fallback }] : [])]
   }, [devices, rooms])
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('dashboard-theme', theme)
-  }, [theme])
-
   const upsertDevice = (incoming) => {
     if (!incoming?.id) return
     setDevices((current) => {
@@ -144,7 +128,6 @@ function App() {
   const handleMessage = (event) => {
     try {
       const message = JSON.parse(event.data)
-      setLastEvent({ type: message.type, data: message.data, receivedAt: new Date().toISOString() })
 
       if (message.type === 'device_updated') {
         upsertDevice(message.data)
@@ -270,29 +253,15 @@ function App() {
   }, [])
 
   return (
-    <main className={`dashboard-shell theme-${theme}`}>
-      <header className="hero-panel">
-        <div>
+    <main className="dashboard-shell">
+      <header className="topbar">
+        <div className="brand">
           <p className="eyebrow">Smart Office Energy Monitoring</p>
-          <h1>Live dashboard, no polling.</h1>
-          <p className="hero-copy">
-            Initial data is loaded once from REST, then the UI stays synchronized
-            through WebSocket events for devices, power, and alerts.
-          </p>
+          <h1>Dashboard</h1>
         </div>
-        <div className="hero-actions">
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-          >
-            {theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          </button>
-          <div className={`connection-pill connection-${wsStatus}`}>
-            <span className="pulse" />
-            <strong>{wsStatus}</strong>
-            <span>WebSocket stream</span>
-          </div>
+        <div className={`connection-pill connection-${wsStatus}`}>
+          <span className="pulse" />
+          <strong>{wsStatus}</strong>
         </div>
       </header>
 
@@ -300,152 +269,96 @@ function App() {
         <article className="metric-card">
           <span>Total power</span>
           <strong>{formatPower(metrics.totalPower)}</strong>
-          <small>Updated in real time</small>
         </article>
         <article className="metric-card">
           <span>Energy used</span>
           <strong>{formatEnergy(metrics.totalEnergy)}</strong>
-          <small>Integrated from power logs</small>
         </article>
         <article className="metric-card">
           <span>Predicted daily energy</span>
           <strong>{formatEnergy(metrics.predictedEnergy)}</strong>
-          <small>Projected from current usage</small>
         </article>
         <article className="metric-card">
           <span>Active devices</span>
           <strong>
             {metrics.activeDevices}/{metrics.totalDevices}
           </strong>
-          <small>Synced from device updates</small>
         </article>
         <article className="metric-card">
           <span>Active alerts</span>
           <strong>{metrics.activeAlerts}</strong>
-          <small>Resolved alerts remain in history</small>
         </article>
         <article className="metric-card">
           <span>Rooms</span>
           <strong>{rooms.length}</strong>
-          <small>Loaded once from REST</small>
         </article>
       </section>
 
-      <section className="content-grid">
-        <div className="panel panel-wide">
-          <div className="panel-header">
-            <div>
-              <p className="section-label">Rooms & devices</p>
-              <h2>Device status</h2>
-            </div>
-            <p className="muted">Live updates arrive over WebSocket</p>
+      <section className="rooms-hero">
+        {loading ? (
+          <div className="empty-state">Loading dashboard data…</div>
+        ) : error ? (
+          <div className="empty-state error-state">{error}</div>
+        ) : (
+          <div className="room-columns">
+            {deviceGroups.map((group) => (
+              <section className="room-card" key={group.room?.id ?? 'fallback'}>
+                <div className="room-card-header">
+                  <p className="section-label">
+                    {group.room ? group.room.name : 'Unassigned devices'}
+                  </p>
+                  <h3>
+                    {group.room
+                      ? `${group.devices.filter((device) => device.is_active).length}/${group.devices.length} active`
+                      : `${group.devices.length} device(s)`}
+                  </h3>
+                </div>
+
+                <div className="device-grid">
+                  {group.devices.map((device) => (
+                    <article
+                      key={device.id}
+                      className={`device-card device-${getDeviceKind(device.type) || 'generic'} ${device.is_active ? 'device-on' : 'device-off'}`}
+                      style={{
+                        '--fan-duration': getFanSpinDuration(device.power_rating),
+                        '--glow-strength': device.is_active
+                          ? Math.max(0.5, Math.min(1.1, Number(device.power_rating || 0) / 80 || 0.6))
+                          : 0,
+                      }}
+                    >
+                      <div className="device-visual" aria-hidden="true">
+                        <DeviceVisual device={device} />
+                      </div>
+                      <div className="device-meta">
+                        <strong>{device.name}</strong>
+                        <span>{formatPower(device.power_rating)}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
+        )}
+      </section>
 
-          {loading ? (
-            <div className="empty-state">Loading dashboard data…</div>
-          ) : error ? (
-            <div className="empty-state error-state">{error}</div>
-          ) : (
-            <div className="room-list">
-              {deviceGroups.map((group) => (
-                <section className="room-card" key={group.room?.id ?? 'fallback'}>
-                  <div className="room-card-header">
-                    <div>
-                      <p className="section-label">
-                        {group.room ? group.room.name : 'Unassigned devices'}
-                      </p>
-                      <h3>
-                        {group.room
-                          ? `${group.devices.filter((device) => device.is_active).length}/${group.devices.length} active`
-                          : `${group.devices.length} device(s)`}
-                      </h3>
-                    </div>
-                    {group.room && (
-                      <span className="badge">{group.room.device_count} planned</span>
-                    )}
-                  </div>
-
-                  <div className="device-grid">
-                    {group.devices.map((device) => (
-                      <article
-                        key={device.id}
-                        className={`device-card device-${getDeviceKind(device.type) || 'generic'} ${device.is_active ? 'device-on' : 'device-off'}`}
-                        style={{
-                          '--fan-duration': getFanSpinDuration(device.power_rating),
-                          '--glow-strength': device.is_active
-                            ? Math.max(0.5, Math.min(1.1, Number(device.power_rating || 0) / 80 || 0.6))
-                            : 0,
-                        }}
-                      >
-                        <div className="device-visual" aria-hidden="true">
-                          <DeviceVisual device={device} />
-                        </div>
-                        <div className="device-meta">
-                          <div className="device-topline">
-                            <strong>{device.name}</strong>
-                            <span>{formatPower(device.power_rating)}</span>
-                          </div>
-                          <small>Last updated {formatTime(device.last_updated)}</small>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+      <section className="alerts-strip">
+        <div className="panel-header">
+          <p className="section-label">Recent alerts</p>
         </div>
-
-        <aside className="sidebar">
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="section-label">Alerts</p>
-                <h2>Active & history</h2>
+        <div className="alert-list-compact">
+          {alerts.slice(0, 2).map((alert) => (
+            <article className={`alert-card alert-${alert.status}`} key={alert.id}>
+              <div className="alert-row">
+                <strong>{alert.rule}</strong>
+                <span>{alert.status}</span>
               </div>
-            </div>
-            <div className="alert-list">
-              {alerts.slice(0, 8).map((alert) => {
-                const parsedContext = safeJson(alert.context)
-                return (
-                  <article className={`alert-card alert-${alert.status}`} key={alert.id}>
-                    <div className="alert-row">
-                      <strong>{alert.rule}</strong>
-                      <span>{alert.status}</span>
-                    </div>
-                    <p>{alert.message}</p>
-                    <small>
-                      Triggered {formatTime(alert.triggered_at)}
-                      {alert.resolved_at ? ` • Resolved ${formatTime(alert.resolved_at)}` : ''}
-                    </small>
-                    {parsedContext && (
-                      <pre className="alert-context">{JSON.stringify(parsedContext, null, 2)}</pre>
-                    )}
-                  </article>
-                )
-              })}
-              {!alerts.length && <div className="empty-inline">No alerts yet.</div>}
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="section-label">Stream</p>
-                <h2>Last event</h2>
-              </div>
-            </div>
-            {lastEvent ? (
-              <div className="event-card">
-                <strong>{lastEvent.type}</strong>
-                <pre>{JSON.stringify(lastEvent.data, null, 2)}</pre>
-                <small>Received {formatTime(lastEvent.receivedAt)}</small>
-              </div>
-            ) : (
-              <div className="empty-inline">Waiting for the first live event…</div>
-            )}
-          </section>
-        </aside>
+              <p>{alert.message}</p>
+              <small>{formatTime(alert.triggered_at)}</small>
+            </article>
+          ))}
+          {!alerts.length && <div className="empty-inline">No alerts yet.</div>}
+        </div>
       </section>
     </main>
   )
