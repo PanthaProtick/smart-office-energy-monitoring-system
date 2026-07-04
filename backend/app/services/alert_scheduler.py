@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from app.database.database import SessionLocal
 from app.services.alert_engine import AlertEngine
-from app.database.models import AlertRule
+from app.database.models import AlertRule, Room
 
 
 class AlertScheduler:
@@ -40,14 +40,26 @@ class AlertScheduler:
                 try:
                     engine = AlertEngine(db)
 
-                    # Check devices active after hours
-                    if engine.check_devices_after_hours():
-                        engine.trigger_alert(
-                            AlertRule.DEVICES_AFTER_HOURS,
-                            "Devices are active outside office hours (8 AM - 6 PM)",
-                        )
-                    else:
-                        engine.resolve_alert(AlertRule.DEVICES_AFTER_HOURS)
+                    # Rule 2: room fully active for 2+ hours. Room.all_active_since
+                    # is kept up to date by DeviceService on every device toggle;
+                    # here we just check whether the threshold has been crossed.
+                    rooms = (
+                        db.query(Room)
+                        .filter(Room.all_active_since.isnot(None))
+                        .all()
+                    )
+                    for room in rooms:
+                        if engine.check_room_active_duration(room):
+                            hours = engine.ROOM_ACTIVE_DURATION_THRESHOLD.total_seconds() / 3600
+                            engine.trigger_alert(
+                                AlertRule.ROOM_COMPLETELY_ACTIVE,
+                                f"All devices in room '{room.name}' have been active "
+                                f"for over {hours:g} hours",
+                                metadata={"room_id": room.id},
+                                room_id=room.id,
+                            )
+                        else:
+                            engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE, room_id=room.id)
 
                     # Check high power sustained
                     # Get total power from most recent PowerLog

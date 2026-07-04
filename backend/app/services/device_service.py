@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database.models import AlertRule, Device, DeviceLog, PowerLog
+from app.database.models import AlertRule, Device, DeviceLog, PowerLog, Room
 
 
 class DeviceService:
@@ -97,6 +97,7 @@ class DeviceService:
 
             engine = AlertEngine(self.db)
 
+            # Rule 3: high total power draw — event-driven, checked on every toggle.
             if engine.check_power_exceeded(total_power):
                 engine.trigger_alert(
                     AlertRule.POWER_EXCEEDED,
@@ -106,14 +107,33 @@ class DeviceService:
             else:
                 engine.resolve_alert(AlertRule.POWER_EXCEEDED)
 
-            if engine.check_room_completely_active(device.room_id):
+            # Rule 2: a fully-active room no longer alerts instantly. Instead we
+            # just record/clear the timestamp the room became fully active;
+            # AlertScheduler periodically checks that timestamp and raises the
+            # alert once a room has stayed fully active for 2+ hours.
+            room = self.db.query(Room).filter(Room.id == device.room_id).first()
+            if room is not None:
+                if engine.check_room_completely_active(device.room_id):
+                    if room.all_active_since is None:
+                        room.all_active_since = device.last_updated
+                        self.db.commit()
+                else:
+                    if room.all_active_since is not None:
+                        room.all_active_since = None
+                        self.db.commit()
+                    # The room condition no longer holds, so resolve immediately
+                    # rather than waiting for the next scheduler tick.
+                    engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE, room_id=device.room_id)
+
+            # Rule 1: devices left on after office hours — event-driven, checked
+            # on every toggle instead of waiting for the periodic scheduler.
+            if engine.check_devices_after_hours():
                 engine.trigger_alert(
-                    AlertRule.ROOM_COMPLETELY_ACTIVE,
-                    f"All devices in room {device.room_id} are active",
-                    metadata={"room_id": device.room_id},
+                    AlertRule.DEVICES_AFTER_HOURS,
+                    "Devices are active outside office hours (8 AM - 6 PM)",
                 )
             else:
-                engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE)
+                engine.resolve_alert(AlertRule.DEVICES_AFTER_HOURS)
 
             return device
         except Exception:

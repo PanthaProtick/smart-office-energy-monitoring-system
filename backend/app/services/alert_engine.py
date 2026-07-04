@@ -10,10 +10,11 @@ from app.database.models import Alert, AlertRule, AlertStatus, Device, Room
 class AlertEngine:
     """Executes alert rules against current system state."""
 
-    POWER_THRESHOLD = 200.0  # watts
+    POWER_THRESHOLD = 500.0  # watts
     AFTER_HOURS_START = 18  # 6 PM
     AFTER_HOURS_END = 8  # 8 AM
     SUSTAINED_POWER_THRESHOLD = 150.0  # watts for 5+ minutes
+    ROOM_ACTIVE_DURATION_THRESHOLD = timedelta(hours=2)
 
     def __init__(self, db: Session):
         self.db = db
@@ -39,6 +40,20 @@ class AlertEngine:
         if not devices:
             return False
         return all(d.is_active for d in devices)
+
+    def check_room_active_duration(self, room: Room) -> bool:
+        """True if `room` has had every device active continuously for
+        at least ROOM_ACTIVE_DURATION_THRESHOLD. Relies on
+        Room.all_active_since, which DeviceService keeps up to date on
+        every device toggle."""
+        if room.all_active_since is None:
+            return False
+
+        since = room.all_active_since
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+
+        return datetime.now(UTC) - since >= self.ROOM_ACTIVE_DURATION_THRESHOLD
 
     def check_devices_after_hours(self) -> bool:
         now = datetime.now(UTC)
@@ -79,12 +94,29 @@ class AlertEngine:
             "context": alert.context,
         }
 
-    def trigger_alert(self, rule: AlertRule, message: str, metadata=None) -> Alert:
-        existing = (
-            self.db.query(Alert)
-            .filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
-            .first()
-        )
+    def _find_active_alert(self, rule: AlertRule, room_id: int | None = None) -> Alert | None:
+        query = self.db.query(Alert).filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
+
+        if room_id is None:
+            return query.first()
+
+        # Rules like ROOM_COMPLETELY_ACTIVE can be active for several rooms
+        # at once, so we disambiguate using the room_id stashed in context.
+        for alert in query.all():
+            if not alert.context:
+                continue
+            try:
+                ctx = json.loads(alert.context)
+            except (TypeError, ValueError):
+                continue
+            if ctx.get("room_id") == room_id:
+                return alert
+        return None
+
+    def trigger_alert(
+        self, rule: AlertRule, message: str, metadata=None, room_id: int | None = None
+    ) -> Alert:
+        existing = self._find_active_alert(rule, room_id)
 
         if existing:
             return existing
@@ -102,12 +134,8 @@ class AlertEngine:
         self._schedule_broadcast(self._serialize_alert(alert))
         return alert
 
-    def resolve_alert(self, rule: AlertRule) -> Alert:
-        alert = (
-            self.db.query(Alert)
-            .filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
-            .first()
-        )
+    def resolve_alert(self, rule: AlertRule, room_id: int | None = None) -> Alert:
+        alert = self._find_active_alert(rule, room_id)
 
         if alert:
             alert.status = AlertStatus.RESOLVED

@@ -27,6 +27,12 @@ class Room(Base):
     name = Column(String, unique=True, nullable=False)
     device_count = Column(Integer, nullable=False)
 
+    # Timestamp of when every device in this room most recently became
+    # active at the same time. Reset to None as soon as any device in the
+    # room turns off. Used by AlertEngine.check_room_active_duration to
+    # detect a room that has been fully active for 2+ hours.
+    all_active_since = Column(DateTime, nullable=True)
+
     devices = relationship(
         "Device",
         back_populates="room",

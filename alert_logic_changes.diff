@@ -1,0 +1,214 @@
+diff --git a/backend/app/database/models.py b/backend/app/database/models.py
+index ede8563..5e64140 100644
+--- a/backend/app/database/models.py
++++ b/backend/app/database/models.py
+@@ -27,6 +27,12 @@ class Room(Base):
+     name = Column(String, unique=True, nullable=False)
+     device_count = Column(Integer, nullable=False)
+ 
++    # Timestamp of when every device in this room most recently became
++    # active at the same time. Reset to None as soon as any device in the
++    # room turns off. Used by AlertEngine.check_room_active_duration to
++    # detect a room that has been fully active for 2+ hours.
++    all_active_since = Column(DateTime, nullable=True)
++
+     devices = relationship(
+         "Device",
+         back_populates="room",
+diff --git a/backend/app/services/alert_engine.py b/backend/app/services/alert_engine.py
+index c4dda12..17cbdd0 100644
+--- a/backend/app/services/alert_engine.py
++++ b/backend/app/services/alert_engine.py
+@@ -10,10 +10,11 @@ from app.database.models import Alert, AlertRule, AlertStatus, Device, Room
+ class AlertEngine:
+     """Executes alert rules against current system state."""
+ 
+-    POWER_THRESHOLD = 200.0  # watts
++    POWER_THRESHOLD = 500.0  # watts
+     AFTER_HOURS_START = 18  # 6 PM
+     AFTER_HOURS_END = 8  # 8 AM
+     SUSTAINED_POWER_THRESHOLD = 150.0  # watts for 5+ minutes
++    ROOM_ACTIVE_DURATION_THRESHOLD = timedelta(hours=2)
+ 
+     def __init__(self, db: Session):
+         self.db = db
+@@ -40,6 +41,20 @@ class AlertEngine:
+             return False
+         return all(d.is_active for d in devices)
+ 
++    def check_room_active_duration(self, room: Room) -> bool:
++        """True if `room` has had every device active continuously for
++        at least ROOM_ACTIVE_DURATION_THRESHOLD. Relies on
++        Room.all_active_since, which DeviceService keeps up to date on
++        every device toggle."""
++        if room.all_active_since is None:
++            return False
++
++        since = room.all_active_since
++        if since.tzinfo is None:
++            since = since.replace(tzinfo=UTC)
++
++        return datetime.now(UTC) - since >= self.ROOM_ACTIVE_DURATION_THRESHOLD
++
+     def check_devices_after_hours(self) -> bool:
+         now = datetime.now(UTC)
+         hour = now.hour
+@@ -79,12 +94,29 @@ class AlertEngine:
+             "context": alert.context,
+         }
+ 
+-    def trigger_alert(self, rule: AlertRule, message: str, metadata=None) -> Alert:
+-        existing = (
+-            self.db.query(Alert)
+-            .filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
+-            .first()
+-        )
++    def _find_active_alert(self, rule: AlertRule, room_id: int | None = None) -> Alert | None:
++        query = self.db.query(Alert).filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
++
++        if room_id is None:
++            return query.first()
++
++        # Rules like ROOM_COMPLETELY_ACTIVE can be active for several rooms
++        # at once, so we disambiguate using the room_id stashed in context.
++        for alert in query.all():
++            if not alert.context:
++                continue
++            try:
++                ctx = json.loads(alert.context)
++            except (TypeError, ValueError):
++                continue
++            if ctx.get("room_id") == room_id:
++                return alert
++        return None
++
++    def trigger_alert(
++        self, rule: AlertRule, message: str, metadata=None, room_id: int | None = None
++    ) -> Alert:
++        existing = self._find_active_alert(rule, room_id)
+ 
+         if existing:
+             return existing
+@@ -102,12 +134,8 @@ class AlertEngine:
+         self._schedule_broadcast(self._serialize_alert(alert))
+         return alert
+ 
+-    def resolve_alert(self, rule: AlertRule) -> Alert:
+-        alert = (
+-            self.db.query(Alert)
+-            .filter(Alert.rule == rule, Alert.status == AlertStatus.ACTIVE)
+-            .first()
+-        )
++    def resolve_alert(self, rule: AlertRule, room_id: int | None = None) -> Alert:
++        alert = self._find_active_alert(rule, room_id)
+ 
+         if alert:
+             alert.status = AlertStatus.RESOLVED
+diff --git a/backend/app/services/alert_scheduler.py b/backend/app/services/alert_scheduler.py
+index dbcc306..81099c0 100644
+--- a/backend/app/services/alert_scheduler.py
++++ b/backend/app/services/alert_scheduler.py
+@@ -3,7 +3,7 @@ from datetime import UTC, datetime
+ 
+ from app.database.database import SessionLocal
+ from app.services.alert_engine import AlertEngine
+-from app.database.models import AlertRule
++from app.database.models import AlertRule, Room
+ 
+ 
+ class AlertScheduler:
+@@ -40,14 +40,26 @@ class AlertScheduler:
+                 try:
+                     engine = AlertEngine(db)
+ 
+-                    # Check devices active after hours
+-                    if engine.check_devices_after_hours():
+-                        engine.trigger_alert(
+-                            AlertRule.DEVICES_AFTER_HOURS,
+-                            "Devices are active outside office hours (8 AM - 6 PM)",
+-                        )
+-                    else:
+-                        engine.resolve_alert(AlertRule.DEVICES_AFTER_HOURS)
++                    # Rule 2: room fully active for 2+ hours. Room.all_active_since
++                    # is kept up to date by DeviceService on every device toggle;
++                    # here we just check whether the threshold has been crossed.
++                    rooms = (
++                        db.query(Room)
++                        .filter(Room.all_active_since.isnot(None))
++                        .all()
++                    )
++                    for room in rooms:
++                        if engine.check_room_active_duration(room):
++                            hours = engine.ROOM_ACTIVE_DURATION_THRESHOLD.total_seconds() / 3600
++                            engine.trigger_alert(
++                                AlertRule.ROOM_COMPLETELY_ACTIVE,
++                                f"All devices in room '{room.name}' have been active "
++                                f"for over {hours:g} hours",
++                                metadata={"room_id": room.id},
++                                room_id=room.id,
++                            )
++                        else:
++                            engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE, room_id=room.id)
+ 
+                     # Check high power sustained
+                     # Get total power from most recent PowerLog
+diff --git a/backend/app/services/device_service.py b/backend/app/services/device_service.py
+index 8fcd43c..297c931 100644
+--- a/backend/app/services/device_service.py
++++ b/backend/app/services/device_service.py
+@@ -4,7 +4,7 @@ from datetime import UTC, datetime
+ from sqlalchemy import func
+ from sqlalchemy.orm import Session
+ 
+-from app.database.models import AlertRule, Device, DeviceLog, PowerLog
++from app.database.models import AlertRule, Device, DeviceLog, PowerLog, Room
+ 
+ 
+ class DeviceService:
+@@ -97,6 +97,7 @@ class DeviceService:
+ 
+             engine = AlertEngine(self.db)
+ 
++            # Rule 3: high total power draw — event-driven, checked on every toggle.
+             if engine.check_power_exceeded(total_power):
+                 engine.trigger_alert(
+                     AlertRule.POWER_EXCEEDED,
+@@ -106,14 +107,33 @@ class DeviceService:
+             else:
+                 engine.resolve_alert(AlertRule.POWER_EXCEEDED)
+ 
+-            if engine.check_room_completely_active(device.room_id):
++            # Rule 2: a fully-active room no longer alerts instantly. Instead we
++            # just record/clear the timestamp the room became fully active;
++            # AlertScheduler periodically checks that timestamp and raises the
++            # alert once a room has stayed fully active for 2+ hours.
++            room = self.db.query(Room).filter(Room.id == device.room_id).first()
++            if room is not None:
++                if engine.check_room_completely_active(device.room_id):
++                    if room.all_active_since is None:
++                        room.all_active_since = device.last_updated
++                        self.db.commit()
++                else:
++                    if room.all_active_since is not None:
++                        room.all_active_since = None
++                        self.db.commit()
++                    # The room condition no longer holds, so resolve immediately
++                    # rather than waiting for the next scheduler tick.
++                    engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE, room_id=device.room_id)
++
++            # Rule 1: devices left on after office hours — event-driven, checked
++            # on every toggle instead of waiting for the periodic scheduler.
++            if engine.check_devices_after_hours():
+                 engine.trigger_alert(
+-                    AlertRule.ROOM_COMPLETELY_ACTIVE,
+-                    f"All devices in room {device.room_id} are active",
+-                    metadata={"room_id": device.room_id},
++                    AlertRule.DEVICES_AFTER_HOURS,
++                    "Devices are active outside office hours (8 AM - 6 PM)",
+                 )
+             else:
+-                engine.resolve_alert(AlertRule.ROOM_COMPLETELY_ACTIVE)
++                engine.resolve_alert(AlertRule.DEVICES_AFTER_HOURS)
+ 
+             return device
+         except Exception:
