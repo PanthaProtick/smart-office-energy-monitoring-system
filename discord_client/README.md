@@ -81,7 +81,7 @@ formatter to `embeds.py` if it needs a new look, and register it in
    ```bash
    cd discord_client
    python -m venv .venv
-   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   source .venv/bin/activate   # Windows: .venv/Scripts/activate
    pip install -r requirements.txt
    ```
 
