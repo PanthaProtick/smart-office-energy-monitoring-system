@@ -30,6 +30,50 @@ class AlertEngine:
 
         loop.create_task(manager.broadcast("alert_created", payload))
 
+    def _schedule_discord_notification(self, alert: Alert):
+        """Fire off the Discord half of the automatic-notification pipeline:
+
+            Alert Engine -> Alert Service -> Gemini Service -> Discord Service -> Discord Channel
+
+        `alert_data` is built here, synchronously, while self.db is still
+        open -- the resulting plain dict (not the ORM object or session) is
+        what gets handed to the background task. That matters because the
+        task may not actually run until well after this request/scheduler
+        tick returns control to the event loop, by which point the caller
+        may have already closed this session.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        from app.services.discord_service import get_discord_service
+
+        discord_service = get_discord_service()
+        if not discord_service.is_configured:
+            # Nothing to do -- skip building alert_data at all.
+            return
+
+        from app.services.alert_service import AlertService
+
+        alert_data = AlertService(self.db).build_alert_data(alert)
+        loop.create_task(self._deliver_discord_notification(discord_service, alert_data))
+
+    @staticmethod
+    async def _deliver_discord_notification(discord_service, alert_data: dict):
+        from app.services.gemini_service import get_gemini_service
+
+        try:
+            # generate_alert_message() itself never raises (it falls back to
+            # a deterministic template internally), but it does a blocking
+            # network call -- run it off the event loop so a slow/hanging
+            # Gemini call can't stall other requests.
+            message = await asyncio.to_thread(get_gemini_service().generate_alert_message, alert_data)
+        except Exception:
+            message = alert_data.get("message") or "An alert was triggered."
+
+        await discord_service.notify_alert(alert_data, message)
+
     def check_power_exceeded(self, current_total_power: float) -> bool:
         return current_total_power > self.POWER_THRESHOLD
 
@@ -131,6 +175,7 @@ class AlertEngine:
         self.db.commit()
         self.db.refresh(alert)
         self._schedule_broadcast(self._serialize_alert(alert))
+        self._schedule_discord_notification(alert)
         return alert
 
     def resolve_alert(self, rule: AlertRule, room_id: int | None = None) -> Alert:

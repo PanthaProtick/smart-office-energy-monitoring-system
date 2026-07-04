@@ -52,3 +52,17 @@ def get_rooms(db: Session = Depends(get_db)):
 	rooms = db.query(Room).order_by(Room.id).all()
 	return [{"id": r.id, "name": r.name, "device_count": r.device_count} for r in rooms]
 
+
+@router.get("/rooms/{room_id}")
+def get_room(room_id: int, db: Session = Depends(get_db)):
+	room = db.query(Room).filter(Room.id == room_id).first()
+	if not room:
+		raise HTTPException(status_code=404, detail="Room not found")
+	svc = DeviceService(db)
+	devices = svc.get_room_devices(room_id)
+	return {
+		"id": room.id,
+		"name": room.name,
+		"device_count": room.device_count,
+		"devices": [_serialize_device(d) for d in devices],
+	}
