@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+import fanIcon from './assets/fan.png'
+import lightIcon from './assets/lamp.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 const WS_URL = import.meta.env.VITE_WS_URL
@@ -16,6 +18,18 @@ const formatTime = (value) => {
     timeStyle: 'medium',
   }).format(date)
 }
+
+const getFanSpinDuration = (powerRating) => {
+  const watts = Number(powerRating || 0)
+
+  if (!watts) return '0s'
+  if (watts >= 90) return '1.6s'
+  if (watts >= 70) return '2.1s'
+  if (watts >= 40) return '2.8s'
+  return '3.6s'
+}
+
+const getDeviceKind = (type) => String(type || '').toLowerCase()
 
 const safeJson = (value) => {
   if (!value) return null
@@ -35,6 +49,24 @@ const getWebSocketUrl = () => {
   return `${protocol}//127.0.0.1:8000/ws`
 }
 
+function DeviceVisual({ device }) {
+  const kind = getDeviceKind(device.type)
+
+  if (kind === 'fan') {
+    return (
+      <div className={`fan-visual ${device.is_active ? 'fan-visual-on' : 'fan-visual-off'}`}>
+        <img className="fan-image" src={fanIcon} alt="" aria-hidden="true" />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`light-visual ${device.is_active ? 'light-visual-on' : 'light-visual-off'}`}>
+      <img className="light-image" src={lightIcon} alt="" aria-hidden="true" />
+    </div>
+  )
+}
+
 function App() {
   const [devices, setDevices] = useState([])
   const [rooms, setRooms] = useState([])
@@ -44,6 +76,7 @@ function App() {
   const [error, setError] = useState('')
   const [wsStatus, setWsStatus] = useState('connecting')
   const [lastEvent, setLastEvent] = useState(null)
+  const [theme, setTheme] = useState(() => window.localStorage.getItem('dashboard-theme') ?? 'dark')
   const socketRef = useRef(null)
   const reconnectTimerRef = useRef(null)
   const mountedRef = useRef(true)
@@ -75,6 +108,11 @@ function App() {
 
     return [...grouped, ...(fallback.length ? [{ room: null, devices: fallback }] : [])]
   }, [devices, rooms])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem('dashboard-theme', theme)
+  }, [theme])
 
   const upsertDevice = (incoming) => {
     if (!incoming?.id) return
@@ -202,7 +240,7 @@ function App() {
   }, [])
 
   return (
-    <main className="dashboard-shell">
+    <main className={`dashboard-shell theme-${theme}`}>
       <header className="hero-panel">
         <div>
           <p className="eyebrow">Smart Office Energy Monitoring</p>
@@ -212,10 +250,19 @@ function App() {
             through WebSocket events for devices, power, and alerts.
           </p>
         </div>
-        <div className={`connection-pill connection-${wsStatus}`}>
-          <span className="pulse" />
-          <strong>{wsStatus}</strong>
-          <span>WebSocket stream</span>
+        <div className="hero-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+          >
+            {theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          </button>
+          <div className={`connection-pill connection-${wsStatus}`}>
+            <span className="pulse" />
+            <strong>{wsStatus}</strong>
+            <span>WebSocket stream</span>
+          </div>
         </div>
       </header>
 
@@ -282,14 +329,24 @@ function App() {
                     {group.devices.map((device) => (
                       <article
                         key={device.id}
-                        className={`device-card ${device.is_active ? 'device-on' : 'device-off'}`}
+                        className={`device-card device-${getDeviceKind(device.type) || 'generic'} ${device.is_active ? 'device-on' : 'device-off'}`}
+                        style={{
+                          '--fan-duration': getFanSpinDuration(device.power_rating),
+                          '--glow-strength': device.is_active
+                            ? Math.max(0.5, Math.min(1.1, Number(device.power_rating || 0) / 80 || 0.6))
+                            : 0,
+                        }}
                       >
-                        <div className="device-topline">
-                          <strong>{device.name}</strong>
-                          <span>{device.type}</span>
+                        <div className="device-visual" aria-hidden="true">
+                          <DeviceVisual device={device} />
                         </div>
-                        <p>{formatPower(device.power_rating)}</p>
-                        <small>Last updated {formatTime(device.last_updated)}</small>
+                        <div className="device-meta">
+                          <div className="device-topline">
+                            <strong>{device.name}</strong>
+                            <span>{formatPower(device.power_rating)}</span>
+                          </div>
+                          <small>Last updated {formatTime(device.last_updated)}</small>
+                        </div>
                       </article>
                     ))}
                   </div>
@@ -300,24 +357,6 @@ function App() {
         </div>
 
         <aside className="sidebar">
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="section-label">Power</p>
-                <h2>Latest readings</h2>
-              </div>
-            </div>
-            <div className="reading-list">
-              {(power.recent_logs ?? []).slice(0, 6).map((entry) => (
-                <div className="reading-row" key={entry.id}>
-                  <span>{formatTime(entry.timestamp)}</span>
-                  <strong>{formatPower(entry.total_power)}</strong>
-                </div>
-              ))}
-              {!power.recent_logs?.length && <div className="empty-inline">No power history yet.</div>}
-            </div>
-          </section>
-
           <section className="panel">
             <div className="panel-header">
               <div>
