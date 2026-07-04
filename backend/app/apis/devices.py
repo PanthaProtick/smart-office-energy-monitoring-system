@@ -38,7 +38,7 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/devices/{device_id}/toggle")
-def post_toggle_device(device_id: int, db: Session = Depends(get_db)):
+async def post_toggle_device(device_id: int, db: Session = Depends(get_db)):
 	svc = DeviceService(db)
 	try:
 		device = svc.toggle_device(device_id)

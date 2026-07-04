@@ -12,6 +12,7 @@ class ConnectionManager:
         self.subscriptions: Dict[str, List[str]] = {
             "device_updated": [],
             "power_updated": [],
+            "energy_updated": [],
             "alert_created": [],
         }
 

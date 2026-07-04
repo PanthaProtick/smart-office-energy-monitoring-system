@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.apis import devices, power, alert, websocket
+from app.database.database import SessionLocal
+from app.services import energy_service
 from app.services.simulator import simulator
 from app.services.alert_scheduler import scheduler
 
@@ -33,6 +35,15 @@ app.include_router(websocket.router)
 
 @app.on_event("startup")
 async def startup_event():
+    # Record the t0 boundary (time + current total power) that energy
+    # calculations integrate from. Must happen before the simulator can
+    # toggle a device, so start it after this.
+    db = SessionLocal()
+    try:
+        energy_service.initialize_baseline(db)
+    finally:
+        db.close()
+
     await simulator.start()
     await scheduler.start()
 

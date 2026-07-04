@@ -97,6 +97,28 @@ class DeviceService:
                 },
             )
 
+            # Lazy import: energy_service is imported by main.py at startup
+            # too, and importing it at module level here works fine (no
+            # circular dependency), but this keeps it next to the analogous
+            # lazy import of AlertEngine below for consistency with the
+            # rest of this function.
+            from app.services import energy_service
+
+            snapshot = energy_service.get_energy_snapshot(self.db)
+            print(
+                f"[energy] total_power_usage_wh={snapshot['total_power_usage_wh']} "
+                f"predicted_power_usage_wh={snapshot['predicted_power_usage_wh']} "
+                f"(elapsed {snapshot['elapsed_hours']}h)"
+            )
+            self._schedule_broadcast(
+                "energy_updated",
+                {
+                    "total_power_usage_wh": snapshot["total_power_usage_wh"],
+                    "predicted_power_usage_wh": snapshot["predicted_power_usage_wh"],
+                    "timestamp": to_iso(snapshot["timestamp"]),
+                },
+            )
+
             from app.services.alert_engine import AlertEngine
 
             engine = AlertEngine(self.db)
