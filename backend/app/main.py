@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.apis import devices, power, alert, websocket
 from app.services.simulator import simulator
@@ -6,6 +7,22 @@ from app.services.alert_scheduler import scheduler
 
 
 app = FastAPI(title="Smart Office Energy Monitoring")
+
+# Allow the frontend dev server (Vite) to call REST endpoints during development.
+# We explicitly allow common local dev origins; adjust if your dev server uses
+# a different host/port or deploy to production with a stricter policy.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(devices.router)
