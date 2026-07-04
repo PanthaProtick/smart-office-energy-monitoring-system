@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.models import AlertRule, Device, DeviceLog, PowerLog, Room
+from app.utils.timeutils import to_iso
 
 
 class DeviceService:
@@ -73,12 +74,8 @@ class DeviceService:
             self.db.commit()
             self.db.refresh(device)
 
-            # Serialize timestamps as ISO 8601 in UTC with trailing 'Z'
-            last_updated_iso = (
-                device.last_updated.isoformat().replace("+00:00", "Z")
-                if device.last_updated is not None
-                else None
-            )
+            # Serialize timestamps as unambiguous UTC ISO 8601 (trailing 'Z')
+            last_updated_iso = to_iso(device.last_updated)
 
             self._schedule_broadcast(
                 "device_updated",

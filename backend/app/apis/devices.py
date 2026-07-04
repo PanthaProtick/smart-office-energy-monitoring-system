@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.database.models import Room, Device
 from app.services.device_service import DeviceService
+from app.utils.timeutils import to_iso
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ def _serialize_device(device: Device) -> dict:
 		"type": str(device.type.value) if hasattr(device.type, 'value') else str(device.type),
 		"power_rating": device.power_rating,
 		"is_active": bool(device.is_active),
-		"last_updated": device.last_updated.isoformat() if device.last_updated else None,
+		"last_updated": to_iso(device.last_updated),
 	}
 
 

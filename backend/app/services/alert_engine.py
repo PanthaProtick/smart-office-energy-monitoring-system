@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.database.models import Alert, AlertRule, AlertStatus, Device, Room
+from app.utils.timeutils import office_now, to_iso
 
 
 class AlertEngine:
@@ -49,15 +50,13 @@ class AlertEngine:
         if room.all_active_since is None:
             return False
 
-        since = room.all_active_since
-        if since.tzinfo is None:
-            since = since.replace(tzinfo=UTC)
-
-        return datetime.now(UTC) - since >= self.ROOM_ACTIVE_DURATION_THRESHOLD
+        return datetime.now(UTC) - room.all_active_since >= self.ROOM_ACTIVE_DURATION_THRESHOLD
 
     def check_devices_after_hours(self) -> bool:
-        now = datetime.now(UTC)
-        hour = now.hour
+        # Evaluated in the office's real timezone, not the server's local
+        # clock or a bare UTC hour -- otherwise "8 AM - 6 PM" means a
+        # different window depending on where this process is deployed.
+        hour = office_now().hour
 
         if hour < self.AFTER_HOURS_END or hour >= self.AFTER_HOURS_START:
             active_devices = self.db.query(Device).filter(Device.is_active.is_(True)).count()
@@ -89,16 +88,8 @@ class AlertEngine:
             "rule": alert.rule.value if hasattr(alert.rule, "value") else str(alert.rule),
             "status": alert.status.value if hasattr(alert.status, "value") else str(alert.status),
             "message": alert.message,
-            "triggered_at": (
-                alert.triggered_at.isoformat().replace("+00:00", "Z")
-                if alert.triggered_at is not None
-                else None
-            ),
-            "resolved_at": (
-                alert.resolved_at.isoformat().replace("+00:00", "Z")
-                if alert.resolved_at is not None
-                else None
-            ),
+            "triggered_at": to_iso(alert.triggered_at),
+            "resolved_at": to_iso(alert.resolved_at),
             "context": alert.context,
         }
 

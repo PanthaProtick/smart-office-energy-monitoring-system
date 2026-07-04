@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.database.models import PowerLog
 from app.services.device_service import DeviceService
+from app.utils.timeutils import to_iso
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ def get_power(db: Session = Depends(get_db)):
 	return {
 		"total_power": float(total),
 		"recent_logs": [
-			{"id": l.id, "total_power": l.total_power, "timestamp": l.timestamp.isoformat()} for l in logs
+			{"id": l.id, "total_power": l.total_power, "timestamp": to_iso(l.timestamp)} for l in logs
 		],
 	}
 

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.database.models import Alert, AlertStatus
+from app.utils.timeutils import to_iso
 
 
 class AlertService:
@@ -39,7 +40,7 @@ class AlertService:
             "rule": str(alert.rule.value) if hasattr(alert.rule, "value") else str(alert.rule),
             "status": str(alert.status.value) if hasattr(alert.status, "value") else str(alert.status),
             "message": alert.message,
-            "triggered_at": alert.triggered_at.isoformat(),
-            "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+            "triggered_at": to_iso(alert.triggered_at),
+            "resolved_at": to_iso(alert.resolved_at),
             "context": alert.context,
         }
