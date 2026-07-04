@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.apis import devices, power, alert, websocket
+from app.apis import devices, power, alert, websocket, summary
 from app.database.database import SessionLocal
 from app.services import energy_service
 from app.services.simulator import simulator
@@ -31,6 +31,7 @@ app.include_router(devices.router)
 app.include_router(power.router)
 app.include_router(alert.router)
 app.include_router(websocket.router)
+app.include_router(summary.router)
 
 
 @app.on_event("startup")

@@ -39,6 +39,7 @@ site/
 # Local configuration
 .env
 .env.*
+!.env.example
 *.local
 .python-version
 

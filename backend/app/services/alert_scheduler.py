@@ -74,6 +74,7 @@ class AlertScheduler:
                             engine.trigger_alert(
                                 AlertRule.HIGH_POWER_SUSTAINED,
                                 f"High power sustained (>{engine.SUSTAINED_POWER_THRESHOLD}W for 5+ min): {recent_log.total_power:.1f}W",
+                                metadata={"total_power": recent_log.total_power},
                             )
                         else:
                             engine.resolve_alert(AlertRule.HIGH_POWER_SUSTAINED)

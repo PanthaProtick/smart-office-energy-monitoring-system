@@ -1,6 +1,9 @@
+import json
+
 from sqlalchemy.orm import Session
 
-from app.database.models import Alert, AlertStatus
+from app.database.models import Alert, AlertRule, AlertStatus, Device, Room
+from app.services.gemini_service import get_gemini_service
 from app.utils.timeutils import to_iso
 
 
@@ -44,3 +47,63 @@ class AlertService:
             "resolved_at": to_iso(alert.resolved_at),
             "context": alert.context,
         }
+
+    def build_alert_data(self, alert: Alert) -> dict:
+        """Assemble the structured dict GeminiService.generate_alert_message expects.
+
+        This only *reads back* facts that AlertEngine already decided and
+        recorded (the rule, its context, which room/devices are involved) --
+        it never re-evaluates whether the alert condition holds. That
+        decision was made once, upstream, when the alert was triggered.
+        """
+        context = {}
+        if alert.context:
+            try:
+                context = json.loads(alert.context)
+            except (TypeError, ValueError):
+                context = {}
+
+        room_name = None
+        active_devices: list[str] = []
+
+        room_id = context.get("room_id")
+        if room_id is not None:
+            room = self.db.query(Room).filter(Room.id == room_id).first()
+            if room is not None:
+                room_name = room.name
+                active_devices = [d.name for d in room.devices if d.is_active]
+        elif alert.rule == AlertRule.DEVICES_AFTER_HOURS:
+            # Global rule, not tied to one room. For a still-ACTIVE alert this
+            # reflects the current situation accurately (the alert only stays
+            # active while at least one device remains on after hours). For an
+            # already-resolved alert, this is a best-effort reconstruction --
+            # nothing snapshotted the after-hours device list at trigger time.
+            active_devices = [
+                d.name
+                for d in self.db.query(Device).filter(Device.is_active.is_(True)).all()
+            ]
+
+        alert_type = alert.rule.value if hasattr(alert.rule, "value") else str(alert.rule)
+
+        data = {
+            "alert_type": alert_type,
+            "room": room_name,
+            "active_devices": active_devices,
+            "time": to_iso(alert.triggered_at),
+            "message": alert.message,
+        }
+        # Merge in any other structured fields AlertEngine stored (e.g.
+        # total_power for POWER_EXCEEDED), without letting them clobber the
+        # keys above.
+        for key, value in context.items():
+            if key != "room_id":
+                data.setdefault(key, value)
+        return data
+
+    def generate_ai_message(self, alert: Alert) -> str:
+        """Alert Engine -> Alert Service -> Gemini Service -> NL message.
+
+        Gemini only phrases the already-triggered alert; it plays no part in
+        deciding that the alert exists.
+        """
+        return get_gemini_service().generate_alert_message(self.build_alert_data(alert))

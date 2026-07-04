@@ -1,0 +1,178 @@
+Milestone 11: Discord Integration
+
+Objective
+Implement a standalone Discord client that communicates only with the FastAPI backend through REST APIs. The Discord client should provide slash commands for querying office status, while the backend automatically sends AI-enhanced alert notifications using the Gemini service.
+
+System Architecture
+
+                     Discord User
+                           │
+                    Slash Commands
+                           │
+                           ▼
+                 Discord Client (Python)
+                           │
+                     REST API Calls
+                           │
+                           ▼
+                  FastAPI Backend
+                           │
+      ┌────────────────────┴────────────────────┐
+      ▼                                         ▼
+SQLite Database                         Gemini Service
+      │                                         │
+      └────────────────────┬────────────────────┘
+                           ▼
+                    Discord Notifications
+
+Project Structure
+
+discord_client/
+│
+├── bot.py
+├── config.py
+├── requirements.txt
+├── README.md
+│
+├── commands/
+│   ├── status.py
+│   ├── power.py
+│   ├── alerts.py
+│   ├── room.py
+│   └── analyze.py
+│
+├── services/
+│   └── backend_client.py
+│
+└── utils/
+    └── embeds.py
+
+
+Backend Changes
+
+Create
+app/services/discord_service.py
+
+Responsibilities
+
+Send automatic alert notifications
+Use GeminiService before sending
+Handle Discord webhook or bot messaging
+Gracefully handle failures
+
+Discord Commands
+Implement the following slash commands.
+
+/status Calls GET /devices
+Displays all rooms and devices grouped by room.
+
+
+/power Calls GET /power
+
+Displays
+Current total power
+Optional AI summary from backend
+
+
+/alerts Calls GET /alerts
+
+Displays all active alerts.
+
+
+/room Calls GET /rooms/{room_id}
+
+Displays all devices within the selected room.
+
+/analyze Calls backend analysis endpoint.
+
+Backend gathers:
+Device status
+Current power
+Active alerts
+
+Then uses GeminiService.generate_office_analysis().
+The Discord bot simply displays the returned summary.
+
+
+Backend Client
+
+Create
+discord_client/services/backend_client.py
+
+Responsibilities
+Implement reusable methods:
+
+get_devices()
+get_power()
+get_alerts()
+get_room(room_id)
+get_analysis()
+
+Use httpx or requests.
+Never access SQLite.
+
+Discord Embeds
+Create helper functions
+
+create_status_embed()
+create_power_embed()
+create_alert_embed()
+create_analysis_embed()
+
+Formatting must be isolated from command handlers.
+
+Automatic Notifications
+When an alert is created:
+
+Simulator
+      │
+Device Service
+      │
+Alert Engine
+      │
+Alert Service
+      │
+Gemini Service
+      │
+Discord Service
+      │
+Discord Channel
+
+The Discord bot is not involved in automatic notifications.
+
+
+Environment Variables
+DISCORD_TOKEN=YOUR_DISCORD_BOT_TOKEN
+BACKEND_URL=http://localhost:8000
+DISCORD_WEBHOOK_URL=YOUR_WEBHOOK_URL
+
+Design Constraints
+
+The Discord client:
+Must never access SQLite.
+Must never contain business logic.
+Must communicate only through FastAPI REST APIs.
+Must use slash commands.
+Must be modular and extensible.
+
+The backend:
+Remains the single source of truth.
+Owns all business logic.
+Uses Gemini only for natural language generation.
+Continues functioning if Discord or Gemini becomes unavailable.
+
+Deliverables:
+Standalone Discord client
+Slash commands
+Backend Discord service
+AI-generated alert notifications
+Rich Discord embeds
+Configuration through environment variables
+Comprehensive README.md
+
+Acceptance Criteria:
+Users can query office status through Discord.
+Automatic alerts are delivered to the configured Discord channel.
+Gemini generates human-friendly summaries.
+Discord failures do not affect backend operation.
+The entire integration remains modular and easy to extend.
